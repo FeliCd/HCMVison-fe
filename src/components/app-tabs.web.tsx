@@ -1,115 +1,196 @@
-import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
-} from 'expo-router/ui';
-import { SymbolView } from 'expo-symbols';
-import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
+import React from 'react';
+import { Tabs, TabList, TabTrigger, TabSlot, TabTriggerSlotProps } from 'expo-router/ui';
+import { usePathname } from 'expo-router';
+import { useWindowDimensions, View, Pressable, StyleSheet } from 'react-native';
 
-import { ExternalLink } from './external-link';
+import { Icon, IconName } from '@/components/icons';
 import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+// Desktop Top Navigation Tab Button
+function DesktopTabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+  return (
+    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
+      <View style={[styles.desktopTabBtn, isFocused && styles.desktopTabBtnActive]}>
+        <ThemedText
+          type="smallBold"
+          style={[styles.desktopTabText, isFocused && styles.desktopTabTextActive]}
+        >
+          {children}
+        </ThemedText>
+      </View>
+    </Pressable>
+  );
+}
+
+// Mobile Bottom Navigation Tab Button
+interface MobileTabButtonProps extends TabTriggerSlotProps {
+  icon: IconName;
+}
+
+function MobileTabButton({ children, isFocused, icon, ...props }: MobileTabButtonProps) {
+  const color = isFocused ? '#00f2ea' : '#849492';
+  return (
+    <Pressable {...props} style={styles.mobileTabBtn}>
+      <Icon name={icon} color={color} size={20} />
+      <ThemedText
+        type="small"
+        style={[styles.mobileTabText, { color }, isFocused && styles.mobileTabTextActive]}
+      >
+        {children}
+      </ThemedText>
+    </Pressable>
+  );
+}
 
 export default function AppTabs() {
+  const { width } = useWindowDimensions();
+  const pathname = usePathname();
+  const isDesktop = width >= 768;
+
   return (
     <Tabs>
-      <TabSlot style={{ height: '100%' }} />
-      <TabList asChild>
-        <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
-            <TabButton>Home</TabButton>
-          </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
-          </TabTrigger>
-        </CustomTabList>
+      {isDesktop ? <TabSlot style={styles.slotDesktop} /> : <TabSlot style={styles.slotMobile} />}
+      
+      <TabList style={[
+        isDesktop ? styles.topNavbar : styles.bottomTabBar,
+        pathname === '/' && { display: 'none' }
+      ]}>
+        {isDesktop && (
+          <View style={styles.logoSection}>
+            <Icon name="my_location" color="#00f2ea" size={20} />
+            <ThemedText type="subtitle" style={styles.brandText}>
+              HCMRainVision
+            </ThemedText>
+          </View>
+        )}
+
+        <TabTrigger name="explore" href="/(tabs)/explore" asChild>
+          {isDesktop ? <DesktopTabButton>Bản đồ</DesktopTabButton> : <MobileTabButton icon="map">Bản đồ</MobileTabButton>}
+        </TabTrigger>
+
+        <TabTrigger name="route" href="/(tabs)/route" asChild>
+          {isDesktop ? <DesktopTabButton>Tuyến đường</DesktopTabButton> : <MobileTabButton icon="directions_car">Tuyến đường</MobileTabButton>}
+        </TabTrigger>
+
+        <TabTrigger name="status" href="/(tabs)/status" asChild>
+          {isDesktop ? <DesktopTabButton>Tình trạng</DesktopTabButton> : <MobileTabButton icon="videocam">Tình trạng</MobileTabButton>}
+        </TabTrigger>
+
+        <TabTrigger name="warning" href="/(tabs)/warning" asChild>
+          {isDesktop ? <DesktopTabButton>Cảnh báo</DesktopTabButton> : <MobileTabButton icon="notifications">Cảnh báo</MobileTabButton>}
+        </TabTrigger>
+
+        <TabTrigger name="more" href="/(tabs)/more" asChild>
+          {isDesktop ? <DesktopTabButton>Thêm</DesktopTabButton> : <MobileTabButton icon="menu">Thêm</MobileTabButton>}
+        </TabTrigger>
+
+        {isDesktop && (
+          <Pressable style={styles.profileBtn}>
+            <Icon name="account_circle" color="#b9cac8" size={24} />
+          </Pressable>
+        )}
       </TabList>
     </Tabs>
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
-  return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
-          {children}
-        </ThemedText>
-      </ThemedView>
-    </Pressable>
-  );
-}
-
-export function CustomTabList(props: TabListProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-
-  return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          Expo Starter
-        </ThemedText>
-
-        {props.children}
-
-        <ExternalLink href="https://docs.expo.dev" asChild>
-          <Pressable style={styles.externalPressable}>
-            <ThemedText type="link">Docs</ThemedText>
-            <SymbolView
-              tintColor={colors.text}
-              name={{ ios: 'arrow.up.right.square', web: 'link' }}
-              size={12}
-            />
-          </Pressable>
-        </ExternalLink>
-      </ThemedView>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  tabListContainer: {
-    position: 'absolute',
-    width: '100%',
-    padding: Spacing.three,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
-  },
-  brandText: {
-    marginRight: 'auto',
-  },
   pressed: {
     opacity: 0.7,
   },
-  tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  externalPressable: {
+  // Desktop Top Navbar styles
+  topNavbar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 56,
+    backgroundColor: 'rgba(5, 20, 36, 0.85)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    zIndex: 50,
+  },
+  logoSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginRight: 'auto',
+  },
+  brandText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#00f2ea',
+    letterSpacing: -0.2,
+  },
+  desktopTriggers: {
+    flexDirection: 'row',
+    gap: 24,
+    alignItems: 'center',
+  },
+  desktopTabBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginHorizontal: 4,
+  },
+  desktopTabBtnActive: {
+    backgroundColor: 'rgba(0, 242, 234, 0.1)',
+  },
+  desktopTabText: {
+    fontSize: 14,
+    color: '#b9cac8',
+  },
+  desktopTabTextActive: {
+    color: '#00f2ea',
+  },
+  profileBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(39, 54, 71, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.one,
-    marginLeft: Spacing.three,
+    marginLeft: 'auto',
+  },
+  slotDesktop: {
+    height: '100%',
+    paddingTop: 56, // Push main screen content down below top bar
+  },
+  // Mobile Bottom TabBar styles
+  bottomTabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: 'rgba(5, 20, 36, 0.85)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    zIndex: 50,
+  },
+  mobileTabBtn: {
+    flex: 1,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mobileTabText: {
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  mobileTabTextActive: {
+    fontWeight: '700',
+  },
+  slotMobile: {
+    height: '100%',
+    paddingBottom: 60, // Push content up above bottom bar
   },
 });

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html class="dark" lang="vi">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>HCMRainVision - Splash</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet">
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-on-surface": "#233143",
+                        "tertiary-container": "#65f2b5",
+                        "secondary-fixed": "#d8e2ff",
+                        "surface-tint": "#00ddd6",
+                        "on-tertiary-fixed": "#002113",
+                        "background": "#051424",
+                        "surface-container-high": "#1c2b3c",
+                        "error-container": "#93000a",
+                        "on-primary-fixed": "#00201e",
+                        "on-primary-container": "#006a66",
+                        "on-primary-fixed-variant": "#00504d",
+                        "on-secondary-container": "#e6ecff",
+                        "surface-variant": "#273647",
+                        "on-tertiary": "#003824",
+                        "surface-container-lowest": "#010f1f",
+                        "on-secondary": "#002e6a",
+                        "on-secondary-fixed-variant": "#004395",
+                        "primary-container": "#00f2ea",
+                        "surface": "#051424",
+                        "on-tertiary-container": "#006d4a",
+                        "on-background": "#d4e4fa",
+                        "on-surface": "#d4e4fa",
+                        "on-secondary-fixed": "#001a42",
+                        "on-error-container": "#ffdad6",
+                        "surface-dim": "#051424",
+                        "secondary": "#adc6ff",
+                        "error": "#ffb4ab",
+                        "outline": "#849492",
+                        "surface-container-highest": "#273647",
+                        "primary-fixed": "#29fcf3",
+                        "tertiary": "#d8ffe7",
+                        "on-error": "#690005",
+                        "primary-fixed-dim": "#00ddd6",
+                        "outline-variant": "#3a4a48",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "on-surface-variant": "#b9cac8",
+                        "inverse-primary": "#006a66",
+                        "inverse-surface": "#d4e4fa",
+                        "surface-bright": "#2c3a4c",
+                        "surface-container-low": "#0d1c2d",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "tertiary-fixed": "#6ffbbe",
+                        "primary": "#cffffb",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "surface-container": "#122131",
+                        "secondary-container": "#0566d9",
+                        "on-primary": "#003735"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "gutter": "12px",
+                        "container_margin": "16px",
+                        "base": "4px",
+                        "lg": "24px",
+                        "xl": "32px"
+                    },
+                    "fontFamily": {
+                        "label-lg": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "title-sm": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-lg": ["13px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "title-sm": ["16px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-sm": ["11px", { "lineHeight": "14px", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .map-bg {
+            background-color: #051424;
+            background-image:
+                radial-gradient(circle at 50% 50%, rgba(0, 242, 234, 0.05) 0%, transparent 60%),
+                linear-gradient(rgba(0, 221, 214, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 221, 214, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+            background-position: center center, center center, center center;
+        }
+
+        .rain-particle {
+            position: absolute;
+            background: linear-gradient(to bottom, transparent, rgba(0, 242, 234, 0.8));
+            width: 1px;
+            height: 40px;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-100vh) rotate(15deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(100vh) rotate(15deg);
+                opacity: 0;
+            }
+        }
+
+        .glow-btn {
+            box-shadow: 0 0 20px rgba(0, 242, 234, 0.2);
+        }
+
+        .glow-btn:hover {
+            box-shadow: 0 0 30px rgba(0, 242, 234, 0.4);
+        }
+    </style>
+    <style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background text-on-surface h-screen w-full overflow-hidden flex flex-col font-body-md antialiased relative map-bg">
+    <!-- Ambient Rain Effect -->
+    <div class="absolute inset-0 pointer-events-none opacity-40 z-0" id="rain-container"></div>
+    <!-- Main Content Canvas -->
+    <main class="flex-1 flex flex-col items-center justify-center px-container_margin z-10 relative">
+        <!-- App Identity -->
+        <div class="flex flex-col items-center text-center space-y-md mb-xl animate-fade-in-up">
+            <div
+                class="w-20 h-20 mb-sm rounded-full bg-surface-container-high/50 backdrop-blur-md border border-white/10 flex items-center justify-center glow-btn">
+                <span class="material-symbols-outlined text-[40px] text-primary-fixed"
+                    style="font-variation-settings: 'FILL' 1;">
+                    radar
+                </span>
+            </div>
+            <h1 class="font-display-lg text-display-lg text-primary-fixed tracking-tight">
+                HCMRainVision
+            </h1>
+            <p class="font-body-md text-body-md text-on-surface-variant max-w-xs mx-auto">
+                Né mưa, tránh kẹt xe, đi an toàn hơn.
+            </p>
+        </div>
+        <!-- Call to Action -->
+        <div class="w-full max-w-xs mt-xl z-20">
+            <button
+                class="w-full bg-primary-container text-on-primary-container font-label-lg text-label-lg py-4 rounded-full glow-btn transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2">
+                <span>Bắt đầu</span>
+                <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+            </button>
+        </div>
+    </main>
+    <!-- Footer Attribution (Suppressed Nav Shell as per instructions for linear/splash screen) -->
+    <footer
+        class="w-full py-lg px-container_margin flex flex-col items-center gap-sm text-center z-10 text-on-surface-variant font-body-sm text-body-sm pb-[34px]">
+        <p class="opacity-60 text-[10px]">Nguồn ảnh: Cổng thông tin giao thông TP.HCM</p>
+    </footer>
+    <script>
+        // Simple rain particle generator
+        const rainContainer = document.getElementById('rain-container');
+        const particleCount = 30;
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.classList.add('rain-particle');
+
+            // Randomize properties
+            const left = Math.random() * 100;
+            const delay = Math.random() * 2;
+            const duration = 0.8 + Math.random() * 0.5;
+
+            particle.style.left = `${left}%`;
+            particle.style.animationDelay = `${delay}s`;
+            particle.style.animationDuration = `${duration}s`;
+
+            rainContainer.appendChild(particle);
+        }
+    </script>
+</body>
+
+</html>

@@ -1,98 +1,184 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
+import Svg, { Path } from 'react-native-svg';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { GridBackground } from '@/components/grid-background';
+import { RainEffect } from '@/components/rain-effect';
+import { RadarLogo } from '@/components/radar-logo';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function HomeScreen() {
+  const scale = useSharedValue(1);
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+    };
+  });
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.95, { damping: 12, stiffness: 200 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 12, stiffness: 200 });
+  };
+
+  const handleStart = () => {
+    router.push('/login');
+  };
+
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
+      {/* 1. Grid Background Map Lines */}
+      <GridBackground />
+
+      {/* 2. Ambient Rain Particle Effect */}
+      <RainEffect />
+
+      {/* 3. Main Content Canvas */}
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+        <View style={styles.mainContent}>
+          {/* Logo & Identity */}
+          <View style={styles.identityContainer}>
+            <RadarLogo />
+            
+            <Text style={styles.appTitle}>HCMRainVision</Text>
+            
+            <Text style={styles.appSubtitle}>
+              Né mưa, tránh kẹt xe, đi an toàn hơn.
+            </Text>
+          </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          {/* Call to Action Button */}
+          <View style={styles.actionContainer}>
+            <AnimatedPressable
+              onPress={handleStart}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              style={[styles.startButton, buttonAnimatedStyle]}
+            >
+              <Text style={styles.startButtonText}>Bắt đầu</Text>
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M5 12H19M19 12L12 5M19 12L12 19"
+                  stroke="#003735"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </AnimatedPressable>
+          </View>
+        </View>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
+        {/* Footer Attribution */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Nguồn ảnh: Cổng thông tin giao thông TP.HCM
+          </Text>
+        </View>
       </SafeAreaView>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: '#051424',
   },
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    zIndex: 10,
   },
-  heroSection: {
+  mainContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  identityContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  appTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#29fcf3',
+    letterSpacing: -0.6,
+    marginTop: 12,
+    textAlign: 'center',
+    ...Platform.select({
+      web: {
+        fontFamily: 'Inter',
+      },
+    }),
+  },
+  appSubtitle: {
+    fontSize: 16,
+    color: '#b9cac8',
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: 280,
+    lineHeight: 24,
+    ...Platform.select({
+      web: {
+        fontFamily: 'Inter',
+      },
+    }),
+  },
+  actionContainer: {
+    width: '100%',
+    maxWidth: 280,
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  startButton: {
+    width: '100%',
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#00f2ea',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    gap: 8,
+    // Glow effect
+    shadowColor: '#00f2ea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  title: {
+  startButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#003735',
+    letterSpacing: 0.5,
+    ...Platform.select({
+      web: {
+        fontFamily: 'Inter',
+      },
+    }),
+  },
+  footer: {
+    width: '100%',
+    paddingVertical: 24,
+    alignItems: 'center',
+    paddingBottom: Platform.OS === 'ios' ? 12 : 24,
+  },
+  footerText: {
+    fontSize: 10,
+    color: '#b9cac8',
+    opacity: 0.6,
     textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
   },
 });
