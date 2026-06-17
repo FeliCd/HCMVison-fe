@@ -1,0 +1,330 @@
+// ==================== AUTH MODELS ====================
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  fullName?: string;
+  phoneNumber?: string;
+  avatarUrl?: string;
+  role: 'User' | 'Admin';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface UpdateProfileRequest {
+  fullName?: string;
+  phoneNumber?: string;
+  avatarUrl?: string;
+}
+
+export interface ChangePasswordRequest {
+  oldPassword: string;
+  newPassword: string;
+}
+
+// ==================== CAMERA MODELS ====================
+
+export interface Camera {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  wardId?: string;
+  wardName?: string;
+  status: 'Active' | 'Inactive' | 'Offline';
+  streamUrl: string;
+  streamType?: string;
+  demoImageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CameraListResponse {
+  items: Camera[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface CreateCameraRequest {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  wardId?: string;
+  streamUrl: string;
+  streamType?: string;
+}
+
+export interface UpdateCameraRequest {
+  name: string;
+  latitude: number;
+  longitude: number;
+  wardId?: string;
+  status?: string;
+  streamUrl?: string;
+}
+
+// ==================== WEATHER MODELS ====================
+
+export interface WeatherData {
+  timestamp: string;
+  temperature: number;
+  humidity: number;
+  rainProbability: number;
+  rainingCameras: number;
+  isRaining: boolean;
+}
+
+export interface WeatherLog {
+  id: string;
+  cameraId: string;
+  timestamp: string;
+  isRaining: boolean;
+  rainProbability: number;
+  imageUrl?: string;
+  note?: string;
+}
+
+export interface WeatherLogsResponse {
+  items: WeatherLog[];
+  total: number;
+}
+
+export interface RainingCamera {
+  cameraId: string;
+  cameraName: string;
+  latitude: number;
+  longitude: number;
+  rainProbability: number;
+  timestamp: string;
+}
+
+export interface WeatherReportRequest {
+  cameraId?: string;
+  isRaining: boolean;
+  note?: string;
+}
+
+export interface RoutePoint {
+  lat: number;
+  lng: number;
+}
+
+export interface CheckRouteRequest {
+  currentLatitude?: number;
+  currentLongitude?: number;
+  originLatitude?: number;
+  originLongitude?: number;
+  destinationLatitude?: number;
+  destinationLongitude?: number;
+  routePoints?: RoutePoint[];
+}
+
+export interface CheckRouteResponse {
+  hasRain: boolean;
+  affectedCameras: RainingCamera[];
+  safeAlternatives?: RoutePoint[];
+  recommendation: string;
+}
+
+export interface HeatmapData {
+  points: Array<{
+    lat: number;
+    lng: number;
+    intensity: number;
+  }>;
+  timestamp: string;
+}
+
+// ==================== LOCATION MODELS ====================
+
+export interface Ward {
+  id: string;
+  name: string;
+  districtId: string;
+  districtName: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface District {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+// ==================== FAVORITE MODELS ====================
+
+export interface Favorite {
+  cameraId: string;
+  camera: Camera;
+  createdAt: string;
+}
+
+export interface FavoriteListResponse {
+  items: Favorite[];
+  total: number;
+}
+
+// ==================== SUBSCRIPTION MODELS ====================
+
+export interface AlertSubscription {
+  subscriptionId: string;
+  wardId?: string;
+  wardName?: string;
+  districtName?: string;
+  thresholdProbability: number;
+  isEnabled: boolean;
+  createdAt: string;
+}
+
+export interface CreateSubscriptionRequest {
+  wardId: string;
+  thresholdProbability?: number;
+}
+
+export interface UpdateSubscriptionRequest {
+  thresholdProbability?: number;
+  isEnabled?: boolean;
+}
+
+export interface SubscriptionListResponse {
+  items: AlertSubscription[];
+  total: number;
+}
+
+// ==================== ADMIN MODELS ====================
+
+export interface AdminStats {
+  totalCameras: number;
+  activeCameras: number;
+  offlineCameras: number;
+  totalUsers: number;
+  activeUsers: number;
+  averageRainProbability: number;
+  rainingCameras: number;
+  totalReports: number;
+  lastUpdateTime: string;
+}
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  status: 'Active' | 'Banned';
+  createdAt: string;
+}
+
+export interface AdminUsersResponse {
+  items: AdminUser[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface FailedCamera {
+  cameraId: string;
+  cameraName: string;
+  lastError: string;
+  lastErrorTime: string;
+  failureCount: number;
+}
+
+export interface CameraHealth {
+  cameraId: string;
+  cameraName: string;
+  status: 'Healthy' | 'Warning' | 'Critical';
+  uptime: number;
+  lastSeen: string;
+  streamHealth: number;
+}
+
+export interface IngestionJob {
+  jobId: string;
+  status: 'Pending' | 'Processing' | 'Completed' | 'Failed';
+  progress: number;
+  createdAt: string;
+  completedAt?: string;
+  errorMessage?: string;
+}
+
+export interface IngestionJobsResponse {
+  items: IngestionJob[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface IngestionStats {
+  date: string;
+  processedRecords: number;
+  failedRecords: number;
+  averageProcessingTime: number;
+}
+
+export interface AuditLog {
+  id: string;
+  userId: number;
+  username: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  timestamp: string;
+  details?: string;
+}
+
+// ==================== CHATBOT MODELS ====================
+
+export interface ChatbotMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface ChatbotMessageRequest {
+  message: string;
+}
+
+export interface ChatbotResponse {
+  message: string;
+  suggestions?: string[];
+}
+
+// ==================== COMMON RESPONSE MODELS ====================
+
+export interface ApiResponse<T> {
+  data: T;
+  message: string;
+  success: boolean;
+  statusCode: number;
+}
+
+export interface ApiErrorResponse {
+  message: string;
+  errors?: Record<string, string[]>;
+  statusCode: number;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
