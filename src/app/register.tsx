@@ -11,7 +11,15 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  FadeInUp,
+} from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
@@ -20,6 +28,11 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const btnScale = useSharedValue(1);
+  const btnStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: btnScale.value }],
+  }));
 
   const handleRegister = () => {
     // Navigate back to login or straight to explore after register
@@ -39,22 +52,20 @@ export default function RegisterScreen() {
       >
         
         {/* Top bar with back button */}
-        <View style={styles.topBar}>
+        <Animated.View entering={FadeInUp.duration(400)} style={styles.topBar}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Icon name="arrow_back" color="#d4e4fa" size={24} />
           </Pressable>
-        </View>
+        </Animated.View>
 
         {/* Brand Header */}
-        <View style={styles.header}>
+        <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.header}>
           <Text style={styles.title}>Tạo tài khoản</Text>
           <Text style={styles.subtitle}>Tham gia Mạng lưới HCMRainVision</Text>
-        </View>
+        </Animated.View>
 
         {/* Register Card */}
-        <View style={styles.card}>
-          <View style={styles.cardTopAccent} />
-          
+        <Animated.View entering={FadeInUp.duration(700).delay(250)} style={styles.card}>
           <View style={styles.form}>
             {/* Username Field */}
             <View style={styles.inputGroup}>
@@ -140,15 +151,14 @@ export default function RegisterScreen() {
             </View>
 
             {/* Primary CTA */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.registerButton,
-                pressed && styles.registerButtonPressed
-              ]}
+            <AnimatedPressable
+              style={[styles.registerButton, btnStyle]}
+              onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
+              onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
               onPress={handleRegister}
             >
               <Text style={styles.registerButtonText}>Đăng ký ngay</Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
 
           {/* Secondary Actions */}
@@ -162,7 +172,7 @@ export default function RegisterScreen() {
               </Link>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
       </ScrollView>
     </KeyboardAvoidingView>
@@ -182,60 +192,59 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(22, 37, 41, 0.5)',
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(25, 30, 40, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#d4e4fa',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#b9cac8',
     marginTop: 8,
+    opacity: 0.9,
   },
   card: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: 'rgba(22, 37, 41, 0.85)',
+    backgroundColor: 'rgba(25, 30, 40, 0.65)',
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     overflow: 'hidden',
     alignSelf: 'center',
-  },
-  cardTopAccent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: '#00f2ea',
-    opacity: 0.5,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 8,
   },
   form: {
-    gap: 20,
+    gap: 16,
   },
   inputGroup: {
     gap: 8,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#b9cac8',
     marginLeft: 4,
     letterSpacing: 0.5,
@@ -243,49 +252,44 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(22, 37, 41, 0.5)',
+    backgroundColor: 'rgba(5, 20, 36, 0.8)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    height: 48,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
+    height: 52,
   },
   inputIcon: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
   input: {
     flex: 1,
     height: '100%',
     color: '#d4e4fa',
-    fontSize: 14,
+    fontSize: 15,
     paddingRight: 12,
   },
   passwordToggle: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     height: '100%',
     justifyContent: 'center',
   },
   registerButton: {
     backgroundColor: '#00f2ea',
-    borderRadius: 12,
-    height: 48,
+    borderRadius: 14,
+    height: 52,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#00f2ea',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
     elevation: 8,
-  },
-  registerButtonPressed: {
-    opacity: 0.8,
-    transform: [{ translateY: 2 }],
-    shadowOpacity: 0.1,
   },
   registerButtonText: {
     color: '#003735',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   secondaryActions: {
     marginTop: 24,
@@ -294,15 +298,15 @@ const styles = StyleSheet.create({
   loginRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   secondaryText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#b9cac8',
   },
   loginLink: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#29fcf3',
+    fontWeight: '700',
+    color: '#00f2ea',
   },
 });

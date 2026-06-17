@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
@@ -6,20 +7,21 @@ import Animated, {
   withRepeat,
   withTiming,
   withDelay,
+  withSequence,
   Easing,
 } from 'react-native-reanimated';
 
-function PulsingRing({ delay }: { delay: number }) {
-  const scale = useSharedValue(0.8);
-  const opacity = useSharedValue(0.5);
+function PulsingRing({ delay, size }: { delay: number; size: number }) {
+  const scale = useSharedValue(0.7);
+  const opacity = useSharedValue(0.6);
 
   useEffect(() => {
     scale.value = withDelay(
       delay,
       withRepeat(
-        withTiming(1.8, {
-          duration: 2000,
-          easing: Easing.out(Easing.ease),
+        withTiming(2.2, {
+          duration: 2400,
+          easing: Easing.out(Easing.cubic),
         }),
         -1,
         false
@@ -29,8 +31,8 @@ function PulsingRing({ delay }: { delay: number }) {
       delay,
       withRepeat(
         withTiming(0, {
-          duration: 2000,
-          easing: Easing.out(Easing.ease),
+          duration: 2400,
+          easing: Easing.out(Easing.cubic),
         }),
         -1,
         false
@@ -42,6 +44,9 @@ function PulsingRing({ delay }: { delay: number }) {
     return {
       transform: [{ scale: scale.value }],
       opacity: opacity.value,
+      width: size,
+      height: size,
+      borderRadius: size / 2,
     };
   });
 
@@ -50,13 +55,22 @@ function PulsingRing({ delay }: { delay: number }) {
 
 export function RadarLogo() {
   const rotation = useSharedValue(0);
+  const innerGlow = useSharedValue(0.2);
 
   useEffect(() => {
     rotation.value = withRepeat(
       withTiming(360, {
-        duration: 4000,
+        duration: 3500,
         easing: Easing.linear,
       }),
+      -1,
+      false
+    );
+    innerGlow.value = withRepeat(
+      withSequence(
+        withTiming(0.5, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.2, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+      ),
       -1,
       false
     );
@@ -68,17 +82,28 @@ export function RadarLogo() {
     };
   });
 
+  const glowStyle = useAnimatedStyle(() => {
+    return {
+      opacity: innerGlow.value,
+    };
+  });
+
   return (
     <View style={styles.container}>
-      {/* Pulse effect rings */}
-      <PulsingRing delay={0} />
-      <PulsingRing delay={1000} />
+      {/* Pulse effect rings — 3 staggered */}
+      <PulsingRing delay={0} size={90} />
+      <PulsingRing delay={800} size={90} />
+      <PulsingRing delay={1600} size={90} />
+
+      {/* Inner glow halo */}
+      <Animated.View style={[styles.innerGlow, glowStyle]} />
 
       {/* Main Container */}
       <View style={styles.innerCircle}>
         {/* Rotating sweep line */}
         <Animated.View style={[styles.sweepContainer, sweepStyle]}>
           <View style={styles.sweepLine} />
+          <View style={styles.sweepLineFade} />
         </Animated.View>
 
         {/* Radar concentric details */}
@@ -94,78 +119,90 @@ export function RadarLogo() {
 
 const styles = StyleSheet.create({
   container: {
-    width: 90,
-    height: 90,
+    width: 100,
+    height: 100,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   ring: {
     position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
     borderWidth: 1.5,
-    borderColor: '#00f2ea',
+    borderColor: 'rgba(0, 242, 234, 0.3)',
+  },
+  innerGlow: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(0, 242, 234, 0.08)',
   },
   innerCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(28, 43, 60, 0.65)',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: 'rgba(25, 30, 40, 0.65)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    // Glow effect
-    shadowColor: '#00f2ea',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
+    // Glass Shadow
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
     shadowRadius: 10,
-    elevation: 5,
+    elevation: 4,
   },
   sweepContainer: {
     position: 'absolute',
-    width: 80,
-    height: 80,
+    width: 88,
+    height: 88,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sweepLine: {
     position: 'absolute',
-    left: 40,
-    width: 40,
+    left: 44,
+    width: 44,
     height: 2,
     backgroundColor: '#00f2ea',
     opacity: 0.6,
   },
+  sweepLineFade: {
+    position: 'absolute',
+    left: 44,
+    width: 30,
+    height: 1,
+    backgroundColor: '#00f2ea',
+    opacity: 0.2,
+    transform: [{ rotate: '-15deg' }, { translateX: 5 }],
+  },
   radarRing1: {
     position: 'absolute',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(0, 242, 234, 0.2)',
-    borderStyle: 'dashed',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   radarRing2: {
     position: 'absolute',
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 1,
-    borderColor: 'rgba(0, 242, 234, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   centerDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#29fcf3',
-    shadowColor: '#29fcf3',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#00f2ea',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 2,
   },
 });

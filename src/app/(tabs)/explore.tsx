@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Platform,
   useWindowDimensions,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -15,11 +16,87 @@ import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  withSpring,
   Easing,
 } from 'react-native-reanimated';
 import { WebView } from 'react-native-webview';
 
 import { Icon } from '@/components/icons';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const locations = [
+  {
+    id: '1',
+    name: 'Chợ Bến Thành',
+    address: 'Quận 1, TP. Hồ Chí Minh',
+    lat: 10.7769,
+    lng: 106.7009,
+    status: 'Mưa lớn - Kẹt xe',
+    type: 'combine',
+    markerColor: '#ffb4ab'
+  },
+  {
+    id: '2',
+    name: 'Đại học Khoa học Tự nhiên',
+    address: '227 Nguyễn Văn Cừ, Quận 5',
+    lat: 10.7626,
+    lng: 106.6822,
+    status: 'Đường thoáng - Bình thường',
+    type: 'traffic',
+    markerColor: '#6ffbbe'
+  },
+  {
+    id: '3',
+    name: 'Landmark 81',
+    address: 'Vinhomes Central Park, Bình Thạnh',
+    lat: 10.7966,
+    lng: 106.7224,
+    status: 'Mưa nhỏ - Giao thông ổn định',
+    type: 'rain',
+    markerColor: '#adc6ff'
+  },
+  {
+    id: '4',
+    name: 'Ngã tư Hàng Xanh',
+    address: 'Bình Thạnh, TP. Hồ Chí Minh',
+    lat: 10.8016,
+    lng: 106.7118,
+    status: 'Kẹt xe nghiêm trọng',
+    type: 'traffic',
+    markerColor: '#ffb4ab'
+  },
+  {
+    id: '5',
+    name: 'Cầu Sài Gòn',
+    address: 'Bình Thạnh - Quận 2',
+    lat: 10.7997,
+    lng: 106.7185,
+    status: 'Mưa vừa - Đường thông thoáng',
+    type: 'rain',
+    markerColor: '#adc6ff'
+  },
+  {
+    id: '6',
+    name: 'Phố đi bộ Nguyễn Huệ',
+    address: 'Quận 1, TP. Hồ Chí Minh',
+    lat: 10.7741,
+    lng: 106.7038,
+    status: 'Mưa rào nhẹ',
+    type: 'rain',
+    markerColor: '#adc6ff'
+  },
+  {
+    id: '7',
+    name: 'Ngã sáu Phù Đổng',
+    address: 'Quận 1, TP. Hồ Chí Minh',
+    lat: 10.7719,
+    lng: 106.6917,
+    status: 'Ùn tắc cục bộ',
+    type: 'traffic',
+    markerColor: '#ffb4ab'
+  }
+];
 
 const mapHtml = `
 <!DOCTYPE html>
@@ -59,14 +136,34 @@ const mapHtml = `
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // Custom markers
-        var redIcon = L.divIcon({className: 'custom-icon', html: '<div style="background-color:#ffb4ab;width:12px;height:12px;border-radius:50%;border:2px solid white;"></div>'});
-        var greenIcon = L.divIcon({className: 'custom-icon', html: '<div style="background-color:#6ffbbe;width:12px;height:12px;border-radius:50%;border:2px solid white;"></div>'});
-        var blueIcon = L.divIcon({className: 'custom-icon', html: '<div style="background-color:#adc6ff;width:12px;height:12px;border-radius:50%;border:2px solid white;"></div>'});
+        window.activeMarkers = [];
+        window.markerMap = {};
 
-        L.marker([10.7769, 106.7009], {icon: redIcon}).addTo(map).bindPopup("Chợ Bến Thành<br>Mưa lớn - Kẹt xe");
-        L.marker([10.7626, 106.6822], {icon: greenIcon}).addTo(map).bindPopup("Đại học Khoa học Tự nhiên<br>Đường thoáng");
-        L.marker([10.7966, 106.7224], {icon: blueIcon}).addTo(map).bindPopup("Landmark 81<br>Mưa nhỏ");
+        window.setMarkers = function(locsJson) {
+            // Clear existing markers
+            if (window.activeMarkers) {
+                window.activeMarkers.forEach(m => map.removeLayer(m));
+            }
+            window.activeMarkers = [];
+            window.markerMap = {};
+
+            var locs = JSON.parse(locsJson);
+            locs.forEach(function(loc) {
+                var iconHtml = '<div style="background-color:' + loc.markerColor + ';width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow: 0 0 8px ' + loc.markerColor + ';"></div>';
+                var customIcon = L.divIcon({className: 'custom-icon', html: iconHtml});
+                var marker = L.marker([loc.lat, loc.lng], {icon: customIcon}).addTo(map);
+                marker.bindPopup("<b>" + loc.name + "</b><br>" + loc.status);
+                window.activeMarkers.push(marker);
+                window.markerMap[loc.id] = marker;
+            });
+        };
+
+        window.focusLocation = function(id, lat, lng, zoom) {
+            map.setView([lat, lng], zoom || 15);
+            if (window.markerMap && window.markerMap[id]) {
+                window.markerMap[id].openPopup();
+            }
+        };
     </script>
 </body>
 </html>
@@ -78,8 +175,12 @@ export default function TabTwoScreen() {
   const { width } = useWindowDimensions();
   const [activeSegment, setActiveSegment] = useState<'rain' | 'traffic' | 'combine'>('rain');
   const [searchText, setSearchText] = useState('');
+  const [suggestions, setSuggestions] = useState<typeof locations>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  const webViewRef = useRef<WebView>(null);
 
-  const bottomBarHeight = 60 + insets.bottom;
+  const bottomBarHeight = 64 + insets.bottom;
   const fabsBottom = bottomBarHeight + 16;
   const infoPanelBottom = bottomBarHeight + 12;
 
@@ -96,31 +197,134 @@ export default function TabTwoScreen() {
     opacity: dotOpacity.value,
   }));
 
+  // Location FAB press
+  const locScale = useSharedValue(1);
+  const locStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: locScale.value }],
+  }));
+
+  const syncMarkers = () => {
+    const filtered = locations.filter(loc => {
+      if (activeSegment === 'combine') return true;
+      return loc.type === activeSegment || loc.type === 'combine';
+    });
+    const locsString = JSON.stringify(filtered).replace(/'/g, "\\'");
+    webViewRef.current?.injectJavaScript(`
+      if (window.setMarkers) {
+        window.setMarkers('${locsString}');
+      }
+      true;
+    `);
+  };
+
+  useEffect(() => {
+    syncMarkers();
+  }, [activeSegment]);
+
+  const handleSearchChange = (text: string) => {
+    setSearchText(text);
+    if (text.trim().length > 0) {
+      const filtered = locations.filter(loc =>
+        loc.name.toLowerCase().includes(text.toLowerCase()) ||
+        loc.address.toLowerCase().includes(text.toLowerCase())
+      );
+      setSuggestions(filtered);
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = (loc: typeof locations[0]) => {
+    setSearchText(loc.name);
+    setShowSuggestions(false);
+    Keyboard.dismiss();
+    
+    // Focus map and open popup
+    webViewRef.current?.injectJavaScript(`
+      if (window.focusLocation) {
+        window.focusLocation('${loc.id}', ${loc.lat}, ${loc.lng}, 15);
+      }
+      true;
+    `);
+  };
+
+  const handleLocationPress = () => {
+    webViewRef.current?.injectJavaScript(`
+      map.setView([10.7626, 106.6822], 11.5);
+      true;
+    `);
+  };
+
   return (
     <View style={styles.container}>
       {/* 1. Real Map Layer using Leaflet via WebView */}
       <WebView
-        style={StyleSheet.absoluteFillObject}
+        ref={webViewRef}
+        style={StyleSheet.absoluteFill}
         source={{ html: mapHtml }}
         scrollEnabled={false}
         bounces={false}
+        onLoadEnd={syncMarkers}
       />
 
       {/* 3. Top UI Layer (Search & Filters) */}
       <View style={[styles.topUiContainer, { paddingTop: Math.max(insets.top, 16) }]}>
-        {/* Search Bar */}
-        <View style={styles.searchBar}>
-          <Icon name="search" color="#b9cac8" size={20} />
-          <TextInput
-            placeholder="Tìm camera, phường hoặc khu vực"
-            placeholderTextColor="#b9cac8"
-            style={styles.searchInput}
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-          <Pressable style={styles.micButton}>
-            <Icon name="mic" color="#29fcf3" size={18} />
-          </Pressable>
+        {/* Search Input and Dropdown */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Icon name="search" color="#b9cac8" size={20} />
+            <TextInput
+              placeholder="Tìm camera, phường hoặc khu vực"
+              placeholderTextColor="#b9cac8"
+              style={styles.searchInput}
+              value={searchText}
+              onChangeText={handleSearchChange}
+              onFocus={() => {
+                if (searchText.trim().length > 0) {
+                  setShowSuggestions(true);
+                }
+              }}
+            />
+            {searchText.length > 0 ? (
+              <Pressable
+                style={styles.clearButton}
+                onPress={() => {
+                  setSearchText('');
+                  setSuggestions([]);
+                  setShowSuggestions(false);
+                }}
+              >
+                <Icon name="close" color="#849492" size={18} />
+              </Pressable>
+            ) : (
+              <Pressable style={styles.micButton}>
+                <Icon name="mic" color="#29fcf3" size={18} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Suggestions Dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <View style={styles.suggestionsDropdown}>
+              <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
+                {suggestions.map((loc) => (
+                  <Pressable
+                    key={loc.id}
+                    style={styles.suggestionItem}
+                    onPress={() => handleSelectSuggestion(loc)}
+                  >
+                    <Icon name="location_on" color="#29fcf3" size={18} />
+                    <View style={styles.suggestionTextContainer}>
+                      <Text style={styles.suggestionName}>{loc.name}</Text>
+                      <Text style={styles.suggestionAddress}>{loc.address}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         {/* Status Chips */}
@@ -145,56 +349,21 @@ export default function TabTwoScreen() {
 
         {/* Segmented Picker */}
         <View style={styles.segmentedControl}>
-          <Pressable
-            onPress={() => setActiveSegment('rain')}
-            style={[
-              styles.segmentBtn,
-              activeSegment === 'rain' && styles.segmentBtnActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                activeSegment === 'rain' && styles.segmentTextActive,
-              ]}
-            >
-              Mưa
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setActiveSegment('traffic')}
-            style={[
-              styles.segmentBtn,
-              activeSegment === 'traffic' && styles.segmentBtnActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                activeSegment === 'traffic' && styles.segmentTextActive,
-              ]}
-            >
-              Giao thông
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setActiveSegment('combine')}
-            style={[
-              styles.segmentBtn,
-              activeSegment === 'combine' && styles.segmentBtnActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                activeSegment === 'combine' && styles.segmentTextActive,
-              ]}
-            >
-              Kết hợp
-            </Text>
-          </Pressable>
+          {(['rain', 'traffic', 'combine'] as const).map((seg) => {
+            const labels = { rain: 'Mưa', traffic: 'Giao thông', combine: 'Kết hợp' };
+            const isActive = activeSegment === seg;
+            return (
+              <Pressable
+                key={seg}
+                onPress={() => setActiveSegment(seg)}
+                style={[styles.segmentBtn, isActive && styles.segmentBtnActive]}
+              >
+                <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>
+                  {labels[seg]}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
@@ -212,9 +381,14 @@ export default function TabTwoScreen() {
           <Icon name="refresh" color="#d4e4fa" size={20} />
         </Pressable>
 
-        <Pressable style={[styles.fabItem, styles.fabLocation]}>
+        <AnimatedPressable
+          style={[styles.fabItem, styles.fabLocation, locStyle]}
+          onPressIn={() => { locScale.value = withSpring(0.88, { damping: 12 }); }}
+          onPressOut={() => { locScale.value = withSpring(1, { damping: 12 }); }}
+          onPress={handleLocationPress}
+        >
           <Icon name="my_location" color="#003735" size={22} />
-        </Pressable>
+        </AnimatedPressable>
       </View>
 
       {/* 5. Bottom Info Panel */}
@@ -242,28 +416,31 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 16,
     zIndex: 20,
-    gap: 8,
+    gap: 12,
+  },
+  searchContainer: {
+    zIndex: 30,
   },
   searchBar: {
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(5, 20, 36, 0.85)',
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: 'rgba(25, 30, 40, 0.75)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
     elevation: 6,
   },
   searchInput: {
     flex: 1,
     color: '#d4e4fa',
-    fontSize: 15,
-    marginLeft: 8,
+    fontSize: 14,
+    marginLeft: 10,
     padding: 0,
     ...Platform.select({
       web: {
@@ -272,12 +449,56 @@ const styles = StyleSheet.create({
     }),
   },
   micButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(39, 54, 71, 0.5)',
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  clearButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  suggestionsDropdown: {
+    marginTop: 8,
+    borderRadius: 16,
+    backgroundColor: 'rgba(25, 30, 40, 0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    gap: 12,
+  },
+  suggestionTextContainer: {
+    flex: 1,
+  },
+  suggestionName: {
+    color: '#d4e4fa',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  suggestionAddress: {
+    color: '#849492',
+    fontSize: 11,
+    marginTop: 2,
   },
   chipsScrollView: {
     flexGrow: 0,
@@ -290,40 +511,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(147, 0, 10, 0.2)',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderColor: 'rgba(255, 180, 171, 0.2)',
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 20,
   },
   statusChipRedText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#ffb4ab',
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(5, 20, 36, 0.85)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(25, 30, 40, 0.75)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 3,
-    marginTop: 4,
+    marginTop: 2,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   segmentBtn: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 11,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   segmentBtnActive: {
-    backgroundColor: 'rgba(0, 242, 234, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   segmentText: {
     fontSize: 13,
@@ -332,6 +556,7 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: '#00f2ea',
+    fontWeight: '700',
   },
   // Fabs Container
   fabsContainer: {
@@ -344,28 +569,30 @@ const styles = StyleSheet.create({
   fabItem: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(5, 20, 36, 0.85)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 14,
+    backgroundColor: 'rgba(25, 30, 40, 0.75)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   fabLocation: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: '#00f2ea',
+    borderColor: 'transparent',
     marginTop: 4,
-    shadowColor: '#00f2ea',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
   },
   // Bottom Left Info Panel
   infoPanel: {
@@ -374,41 +601,37 @@ const styles = StyleSheet.create({
     zIndex: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(5, 20, 36, 0.85)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(25, 30, 40, 0.8)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
-    maxWidth: 200,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 10,
+    maxWidth: 210,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   infoPanelDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#6ffbbe',
-    shadowColor: '#6ffbbe',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
   },
   infoPanelTextContainer: {
     flex: 1,
   },
   infoPanelTitle: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#d4e4fa',
   },
   infoPanelSubtitle: {
-    fontSize: 9,
+    fontSize: 10,
     color: '#b9cac8',
-    marginTop: 1,
+    marginTop: 2,
   },
 });

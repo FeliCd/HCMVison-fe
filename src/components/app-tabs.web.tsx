@@ -105,9 +105,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 56,
-    backgroundColor: 'rgba(5, 20, 36, 0.85)',
+    backgroundColor: 'rgba(25, 30, 40, 0.88)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.14)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -134,11 +134,11 @@ const styles = StyleSheet.create({
   desktopTabBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 8,
     marginHorizontal: 4,
   },
   desktopTabBtnActive: {
-    backgroundColor: 'rgba(0, 242, 234, 0.1)',
+    backgroundColor: 'rgba(0, 242, 234, 0.15)',
   },
   desktopTabText: {
     fontSize: 14,
@@ -158,39 +158,43 @@ const styles = StyleSheet.create({
   },
   slotDesktop: {
     height: '100%',
-    paddingTop: 56, // Push main screen content down below top bar
+    paddingTop: 56,
   },
-  // Mobile Bottom TabBar styles
   bottomTabBar: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    backgroundColor: 'rgba(5, 20, 36, 0.85)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    bottom: 12,
+    left: 16,
+    right: 16,
+    height: 64,
+    backgroundColor: 'rgba(25, 30, 40, 0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     zIndex: 50,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
   },
   mobileTabBtn: {
     flex: 1,
-    height: 60,
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
   mobileTabText: {
-    fontSize: 10,
+    fontSize: 9,
     marginTop: 4,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   mobileTabTextActive: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
   slotMobile: {
     height: '100%',
-    paddingBottom: 60, // Push content up above bottom bar
+    paddingBottom: 76,
   },
 });
