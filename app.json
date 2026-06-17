@@ -18,7 +18,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.HCMVision"
+      "package": "com.anonymous.HCMVision",
+      "config": {
+        "googleMaps": {
+          "apiKey": "DUMMY_API_KEY_PLEASE_CHANGE_ME"
+        }
+      }
     },
     "web": {
       "output": "static",

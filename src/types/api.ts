@@ -44,19 +44,17 @@ export interface Camera {
   wardId?: string;
   wardName?: string;
   status: 'Active' | 'Inactive' | 'Offline';
-  streamUrl: string;
+  streamUrl?: string;
   streamType?: string;
   demoImageUrl?: string;
-  createdAt: string;
-  updatedAt: string;
+  lastUpdatedAt?: string;
 }
 
 export interface CameraListResponse {
-  items: Camera[];
+  data: Camera[];
   total: number;
   page: number;
   pageSize: number;
-  totalPages: number;
 }
 
 export interface CreateCameraRequest {
@@ -92,16 +90,32 @@ export interface WeatherData {
 export interface WeatherLog {
   id: string;
   cameraId: string;
-  timestamp: string;
+  cameraName?: string;
+  wardName?: string;
+  districtName?: string;
+  latitude: number;
+  longitude: number;
   isRaining: boolean;
-  rainProbability: number;
+  rainLevel: string;
+  trafficLevel: string;
+  confidence: number;
+  timestampUtc?: string;
+  timeAgo: string;
   imageUrl?: string;
-  note?: string;
+  rawImageUrl?: string;
+  imageExpiresAtUtc?: string;
+  imageDeletedAtUtc?: string;
+  imageIsRedacted?: boolean;
+  aiModel?: string;
+  aiReason?: string;
 }
 
 export interface WeatherLogsResponse {
-  items: WeatherLog[];
-  total: number;
+  count: number;
+  minutes: number;
+  limit: number;
+  onlyWithImages: boolean;
+  data: WeatherLog[];
 }
 
 export interface RainingCamera {
@@ -109,8 +123,25 @@ export interface RainingCamera {
   cameraName: string;
   latitude: number;
   longitude: number;
-  rainProbability: number;
-  timestamp: string;
+  wardId?: string;
+  cameraStatus?: string;
+  isRaining: boolean;
+  rainLevel: string;
+  trafficLevel: string;
+  confidence: number;
+  lastRainAtUtc: string;
+  imageUrl?: string;
+  rawImageUrl?: string;
+  imageExpiresAtUtc?: string;
+  imageDeletedAtUtc?: string;
+  imageIsRedacted?: boolean;
+}
+
+export interface RainingCamerasResponse {
+  count: number;
+  minutes: number;
+  timeLimitUtc: string;
+  data: RainingCamera[];
 }
 
 export interface WeatherReportRequest {
@@ -135,10 +166,25 @@ export interface CheckRouteRequest {
 }
 
 export interface CheckRouteResponse {
-  hasRain: boolean;
-  affectedCameras: RainingCamera[];
-  safeAlternatives?: RoutePoint[];
-  recommendation: string;
+  result: {
+    isSafe: boolean;
+    riskLevel: string;
+    summary: string;
+    recommendation: string;
+  };
+  rainInfo: {
+    warningCount: number;
+    destinationRainHits: number;
+    rainingCameraCountLast30m: number;
+    warnings: Array<{
+      lat: number;
+      lng: number;
+      cameraId?: string;
+      message: string;
+      rainLevel?: string;
+      trafficLevel?: string;
+    }>;
+  };
 }
 
 export interface HeatmapData {

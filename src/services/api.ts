@@ -1,10 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError, AxiosInstance } from 'axios';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://hcmvision-api.onrender.com/api';
+import { Platform } from 'react-native';
+
+const RAW_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5057/api';
+
+// Handle Android Emulator localhost issue
+const API_BASE_URL = Platform.OS === 'android' && RAW_API_URL.includes('localhost')
+  ? RAW_API_URL.replace('localhost', '10.0.2.2')
+  : RAW_API_URL;
 
 class ApiClient {
-  private client: AxiosInstance;
+  private readonly client: AxiosInstance;
   private token: string | null = null;
 
   constructor() {
@@ -25,7 +32,9 @@ class ApiClient {
         }
         return config;
       },
-      (error) => Promise.reject(error)
+      (error) => {
+        throw error;
+      }
     );
 
     // Response interceptor
@@ -43,7 +52,7 @@ class ApiClient {
           this.onUnauthorized?.();
         }
 
-        return Promise.reject(error);
+        throw error;
       }
     );
   }
