@@ -6,20 +6,145 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import * as Location from 'expo-location';
+import apiClient from '@/services/api';
+
+interface RouteData {
+  id: string;
+  distanceKm: string;
+  durationMin: string;
+  summary: string;
+  isSafe: boolean;
+  warnings: any[];
+  badTrafficWarnings: any[];
+}
 
 export default function RouteScreen() {
   const insets = useSafeAreaInsets();
   const [from, setFrom] = useState('Vị trí hiện tại');
   const [to, setTo] = useState('');
 
+  const [loading, setLoading] = useState(false);
+  const [routes, setRoutes] = useState<RouteData[]>([]);
+  const [errorMsg, setErrorMsg] = useState('');
+
   const handleSwap = () => {
     const temp = from;
     setFrom(to);
     setTo(temp);
+  };
+
+  const handleSearch = async () => {
+    if (!from || !to) {
+      setErrorMsg('Vui lòng nhập điểm xuất phát và điểm đến');
+      return;
+    }
+
+    Keyboard.dismiss();
+    setLoading(true);
+    setErrorMsg('');
+    setRoutes([]);
+
+    try {
+      let startCoord = null;
+      let endCoord = null;
+
+      // 1. Resolve start location
+      if (from.toLowerCase() === 'vị trí hiện tại' || from.toLowerCase() === 'my location') {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setErrorMsg('Vui lòng cấp quyền vị trí để dùng "Vị trí hiện tại"');
+          setLoading(false);
+          return;
+        }
+        let location = await Location.getCurrentPositionAsync({});
+        startCoord = { lat: location.coords.latitude, lng: location.coords.longitude };
+      } else {
+        startCoord = await apiClient.geocodeAddress(from);
+        if (!startCoord) {
+          setErrorMsg(`Không tìm thấy địa chỉ: ${from}`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Resolve end location
+      endCoord = await apiClient.geocodeAddress(to);
+      if (!endCoord) {
+        setErrorMsg(`Không tìm thấy địa chỉ: ${to}`);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Call OSRM for routes
+      const osrmData = await apiClient.getOSRMRoutes(
+        startCoord.lng,
+        startCoord.lat,
+        endCoord.lng,
+        endCoord.lat
+      );
+
+      if (!osrmData || !osrmData.routes || osrmData.routes.length === 0) {
+        setErrorMsg('Không tìm thấy tuyến đường nào khả dụng');
+        setLoading(false);
+        return;
+      }
+
+      // 4. For each route, check safety with our backend
+      const loadedRoutes: RouteData[] = [];
+      
+      for (let i = 0; i < osrmData.routes.length; i++) {
+        const routeObj = osrmData.routes[i];
+        
+        // geometry.coordinates is array of [lng, lat]
+        const coords = routeObj.geometry.coordinates;
+        if (!coords || coords.length === 0) continue;
+
+        const routePoints = coords.map((c: any) => ({ lat: c[1], lng: c[0] }));
+
+        try {
+          const checkRes = await apiClient.checkRoute({ routePoints });
+          const safetyData = checkRes.data;
+
+          const distanceKm = (routeObj.distance / 1000).toFixed(1);
+          const durationMin = Math.round(routeObj.duration / 60).toString();
+          
+          // Generate a summary (e.g., street name if available, or generic)
+          // OSRM provides legs[0].summary
+          let summaryText = 'Tuyến đường thay thế';
+          if (routeObj.legs && routeObj.legs.length > 0 && routeObj.legs[0].summary) {
+            summaryText = `Qua ${routeObj.legs[0].summary}`;
+          } else if (i === 0) {
+            summaryText = 'Tuyến đường nhanh nhất';
+          }
+
+          loadedRoutes.push({
+            id: `route-${i}`,
+            distanceKm,
+            durationMin,
+            summary: summaryText,
+            isSafe: safetyData.isRouteSafe,
+            warnings: safetyData.warnings || [],
+            badTrafficWarnings: safetyData.badTrafficWarnings || [],
+          });
+        } catch (err) {
+          console.warn('Check route safety failed for a route', err);
+        }
+      }
+
+      setRoutes(loadedRoutes);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg('Đã có lỗi xảy ra khi tìm đường');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,6 +161,7 @@ export default function RouteScreen() {
             onChangeText={setFrom}
             placeholder="Điểm xuất phát"
             placeholderTextColor="#b9cac8"
+            onSubmitEditing={handleSearch}
           />
         </View>
         <View style={styles.divider} />
@@ -47,6 +173,7 @@ export default function RouteScreen() {
             onChangeText={setTo}
             placeholder="Điểm đến"
             placeholderTextColor="#b9cac8"
+            onSubmitEditing={handleSearch}
           />
         </View>
         
@@ -54,48 +181,72 @@ export default function RouteScreen() {
         <Pressable style={styles.swapButton} onPress={handleSwap}>
           <Icon name="refresh" color="#00f2ea" size={16} />
         </Pressable>
+
+        {/* Search Button */}
+        <Pressable style={styles.searchButton} onPress={handleSearch}>
+          {loading ? (
+            <ActivityIndicator size="small" color="#051424" />
+          ) : (
+            <Text style={styles.searchButtonText}>Tìm đường</Text>
+          )}
+        </Pressable>
       </Animated.View>
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 100 }}>
-        <Animated.Text entering={FadeInUp.duration(500).delay(200)} style={styles.sectionTitle}>Đề xuất tuyến đường an toàn</Animated.Text>
+        {errorMsg ? (
+           <Animated.View entering={FadeInUp.duration(400)} style={styles.errorBox}>
+             <Icon name="warning" color="#fca5a5" size={20} />
+             <Text style={styles.errorText}>{errorMsg}</Text>
+           </Animated.View>
+        ) : null}
 
-        {/* Route Card 1 */}
-        <Animated.View entering={FadeInUp.duration(600).delay(300)}>
-          <Pressable style={styles.routeCard}>
-            <View style={styles.routeHeader}>
-              <View>
-                <Text style={styles.routeTime}>25 phút</Text>
-                <Text style={styles.routeDistance}>8.2 km • Qua Nguyễn Văn Linh</Text>
-              </View>
-              <View style={styles.statusChipGreen}>
-                <Icon name="traffic" color="#10b981" size={12} />
-                <Text style={styles.statusChipGreenText}>Thông thoáng</Text>
-              </View>
-            </View>
-            <View style={styles.routeDetails}>
-              <Text style={styles.routeDesc}>Tuyến đường tối ưu nhất hiện tại. Không có ngập nước hoặc kẹt xe.</Text>
-            </View>
-          </Pressable>
-        </Animated.View>
+        {routes.length > 0 && (
+          <Animated.Text entering={FadeInUp.duration(500).delay(200)} style={styles.sectionTitle}>
+            Đề xuất tuyến đường
+          </Animated.Text>
+        )}
 
-        {/* Route Card 2 */}
-        <Animated.View entering={FadeInUp.duration(600).delay(450)}>
-          <Pressable style={[styles.routeCard, styles.routeCardWarning]}>
-            <View style={styles.routeHeader}>
-              <View>
-                <Text style={styles.routeTimeWarning}>38 phút</Text>
-                <Text style={styles.routeDistance}>7.5 km • Qua Huỳnh Tấn Phát</Text>
-              </View>
-              <View style={styles.statusChipRed}>
-                <Icon name="rainy" color="#ffb4ab" size={12} />
-                <Text style={styles.statusChipRedText}>Mưa lớn / Ngập</Text>
-              </View>
-            </View>
-            <View style={styles.routeDetails}>
-              <Text style={styles.routeDescWarning}>Cảnh báo: Đoạn đường có điểm ngập sâu 20cm, hạn chế di chuyển.</Text>
-            </View>
-          </Pressable>
-        </Animated.View>
+        {routes.map((route, index) => {
+          const isWarning = !route.isSafe || route.warnings.length > 0 || route.badTrafficWarnings.length > 0;
+          
+          let mainWarning = 'Tuyến đường tối ưu nhất hiện tại. Không có ngập nước hoặc kẹt xe.';
+          let shortStatus = 'Thông thoáng';
+          
+          if (isWarning) {
+             const allWarns = [...route.warnings.map(w => w.reason), ...route.badTrafficWarnings.map(w => w.reason)];
+             if (allWarns.length > 0) {
+               mainWarning = `Cảnh báo: ${allWarns[0]}`;
+             } else {
+               mainWarning = 'Có cảnh báo thời tiết hoặc kẹt xe trên tuyến đường.';
+             }
+             
+             if (route.warnings.length > 0) {
+                shortStatus = 'Mưa lớn / Ngập';
+             } else {
+                shortStatus = 'Kẹt xe';
+             }
+          }
+
+          return (
+            <Animated.View key={route.id} entering={FadeInUp.duration(600).delay(300 + index * 150)} layout={Layout.springify()}>
+              <Pressable style={[styles.routeCard, isWarning && styles.routeCardWarning]}>
+                <View style={styles.routeHeader}>
+                  <View>
+                    <Text style={isWarning ? styles.routeTimeWarning : styles.routeTime}>{route.durationMin} phút</Text>
+                    <Text style={styles.routeDistance}>{route.distanceKm} km • {route.summary}</Text>
+                  </View>
+                  <View style={isWarning ? styles.statusChipRed : styles.statusChipGreen}>
+                    <Icon name={isWarning ? (route.warnings.length > 0 ? "rainy" : "traffic") : "traffic"} color={isWarning ? "#ffb4ab" : "#10b981"} size={12} />
+                    <Text style={isWarning ? styles.statusChipRedText : styles.statusChipGreenText}>{shortStatus}</Text>
+                  </View>
+                </View>
+                <View style={styles.routeDetails}>
+                  <Text style={isWarning ? styles.routeDescWarning : styles.routeDesc}>{mainWarning}</Text>
+                </View>
+              </Pressable>
+            </Animated.View>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -133,6 +284,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     gap: 14,
+    marginRight: 40, // space for swap btn
   },
   inputDotGreen: {
     width: 8,
@@ -157,12 +309,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginLeft: 22,
     marginVertical: 4,
+    marginRight: 40,
   },
   swapButton: {
     position: 'absolute',
     right: 16,
-    top: '50%',
-    transform: [{ translateY: -18 }],
+    top: 36,
     width: 36,
     height: 36,
     borderRadius: 12,
@@ -176,6 +328,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
+  searchButton: {
+    backgroundColor: '#00f2ea',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  searchButtonText: {
+    color: '#003735',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  errorBox: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8, 
+    backgroundColor: 'rgba(239,68,68,0.08)', 
+    padding: 16, 
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  errorText: { flex: 1, color: '#fca5a5', fontSize: 13 },
   content: {
     flex: 1,
   },

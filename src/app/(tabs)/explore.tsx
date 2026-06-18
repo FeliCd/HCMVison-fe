@@ -23,7 +23,8 @@ import { WebView } from 'react-native-webview';
 
 import { Icon } from '@/components/icons';
 import { useWeather } from '@/hooks/useWeather';
-import { RainingCamera } from '@/types/api';
+import { useTheme } from '@/hooks/useTheme';
+import { WeatherLog } from '@/types/api';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -39,18 +40,22 @@ type MapLocation = {
   markerColor: string;
 };
 
-// Convert RainingCamera → MapLocation
-function toMapLocation(cam: RainingCamera): MapLocation {
-  const isJam = cam.trafficLevel === 'jam' || cam.trafficLevel === 'slow';
-  const type: MapLocation['type'] = cam.isRaining && isJam ? 'combine' : cam.isRaining ? 'rain' : 'traffic';
-  const markerColor = type === 'combine' || type === 'rain' ? '#ffb4ab' : '#f59e0b';
+// Convert WeatherLog → MapLocation
+function toMapLocation(log: WeatherLog): MapLocation {
+  const isJam = log.trafficLevel === 'jam' || log.trafficLevel === 'slow';
+  const type: MapLocation['type'] = log.isRaining && isJam ? 'combine' : log.isRaining ? 'rain' : 'traffic';
+  // Red for combine/rain, Orange/Yellow for traffic jam, Green for clear
+  let markerColor = '#10b981'; // Default green
+  if (type === 'combine' || type === 'rain') markerColor = '#ffb4ab'; // Red
+  else if (isJam) markerColor = '#f59e0b'; // Orange
+
   return {
-    id: cam.cameraId,
-    name: cam.cameraName,
-    address: cam.cameraId,
-    lat: cam.latitude,
-    lng: cam.longitude,
-    status: `${cam.isRaining ? `Mưa ${cam.rainLevel}` : 'Không mưa'} - ${cam.trafficLevel}`,
+    id: log.cameraId,
+    name: log.cameraName || log.cameraId,
+    address: log.districtName || log.wardName || log.cameraId,
+    lat: log.latitude,
+    lng: log.longitude,
+    status: `${log.isRaining ? `Mưa ${log.rainLevel}` : 'Không mưa'} - ${log.trafficLevel}`,
     type,
     markerColor,
   };
@@ -58,7 +63,7 @@ function toMapLocation(cam: RainingCamera): MapLocation {
 
 
 
-const mapHtml = `
+const mapHtml = (isDark: boolean) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -67,13 +72,13 @@ const mapHtml = `
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { padding: 0; margin: 0; }
-        html, body, #map { height: 100%; width: 100%; background-color: #051424; }
+        html, body, #map { height: 100%; width: 100%; background-color: ; }
         /* Dark theme filters for map tiles */
         .leaflet-layer,
         .leaflet-control-zoom-in,
         .leaflet-control-zoom-out,
         .leaflet-control-attribution {
-          filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+          
         }
     </style>
 </head>
@@ -90,10 +95,10 @@ const mapHtml = `
             minZoom: 10
         }).setView([10.7626, 106.6602], 11);
 
-        // OpenStreetMap Free Tile Layer
-        L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
+        // Google Maps with Traffic Tile Layer
+        L.tileLayer('https://mt1.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            attribution: '© Google'
         }).addTo(map);
 
         window.activeMarkers = [];
@@ -139,20 +144,28 @@ export default function TabTwoScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locations, setLocations] = useState<MapLocation[]>([]);
 
-  const { rainingCameras, getRainingCameras } = useWeather();
+  const { logs, getWeatherLogs } = useWeather();
+  const { colors, isDark } = useTheme();
   const webViewRef = useRef<WebView>(null);
 
-  // Load raining cameras từ API
+  // Load weather logs từ API
   useEffect(() => {
-    getRainingCameras(60);
+    getWeatherLogs(60, 500); // Lấy logs trong 60 phút, tối đa 500 records
   }, []);
 
-  // Khi có data mới từ API, convert sang MapLocation
+  // Khi có data mới từ API, lấy log mới nhất của mỗi camera và convert sang MapLocation
   useEffect(() => {
-    if (rainingCameras.length > 0) {
-      setLocations(rainingCameras.map(toMapLocation));
+    if (logs.length > 0) {
+      const latestLogsMap = new Map<string, WeatherLog>();
+      logs.forEach(log => {
+        if (!latestLogsMap.has(log.cameraId)) {
+          latestLogsMap.set(log.cameraId, log);
+        }
+      });
+      const latestLogs = Array.from(latestLogsMap.values());
+      setLocations(latestLogs.map(toMapLocation));
     }
-  }, [rainingCameras]);
+  }, [logs]);
 
   const bottomBarHeight = 64 + insets.bottom;
   const fabsBottom = bottomBarHeight + 16;
@@ -238,7 +251,7 @@ export default function TabTwoScreen() {
       <WebView
         ref={webViewRef}
         style={StyleSheet.absoluteFill}
-        source={{ html: mapHtml }}
+        source={{ html: mapHtml(isDark) }}
         scrollEnabled={false}
         bounces={false}
         onLoadEnd={syncMarkers}

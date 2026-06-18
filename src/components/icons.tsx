@@ -52,7 +52,10 @@ export type IconName =
   | 'help_outline'
   | 'update'
   | 'security'
-  | 'edit';
+  | 'edit'
+  | 'radio_button_checked'
+  | 'radio_button_unchecked'
+  | 'settings_brightness';
 
 interface IconProps {
   name: IconName;
@@ -63,6 +66,26 @@ interface IconProps {
 
 export function Icon({ name, color = '#ffffff', size = 24, style }: IconProps) {
   switch (name) {
+    case 'radio_button_checked':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={2} />
+          <Circle cx="12" cy="12" r="5" fill={color} />
+        </Svg>
+      );
+    case 'radio_button_unchecked':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={2} />
+        </Svg>
+      );
+    case 'settings_brightness':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={2} />
+          <Path d="M12 2v20a10 10 0 000-20z" fill={color} opacity={0.5} />
+        </Svg>
+      );
     case 'close':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>

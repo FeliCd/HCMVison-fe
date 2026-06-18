@@ -13,6 +13,7 @@ interface AuthContextType {
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  loadUser: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -130,6 +131,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearError = useCallback(() => setError(null), []);
 
+  const loadUser = useCallback(async () => {
+    try {
+      const profileResponse = await apiClient.getProfile();
+      const userData = profileResponse.data as User;
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+    } catch (err) {
+      console.warn('Failed to load user profile', err);
+    }
+  }, []);
+
   return React.createElement(
     AuthContext.Provider,
     {
@@ -142,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         clearError,
+        loadUser,
       },
     },
     children

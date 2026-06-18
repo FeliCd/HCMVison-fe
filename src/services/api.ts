@@ -372,6 +372,50 @@ class ApiClient {
       params: { days },
     });
   }
+
+  // --- External Routing & Geocoding Helpers ---
+  async geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+          address + ', Ho Chi Minh City, Vietnam'
+        )}&format=json&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'HCMVision/1.0',
+          },
+        }
+      );
+      const data = await response.json();
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+        };
+      }
+      return null;
+    } catch (e) {
+      console.error('Geocoding error:', e);
+      return null;
+    }
+  }
+
+  async getOSRMRoutes(
+    startLng: number,
+    startLat: number,
+    endLng: number,
+    endLat: number
+  ): Promise<any> {
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson&alternatives=true`
+      );
+      return await response.json();
+    } catch (e) {
+      console.error('OSRM error:', e);
+      return null;
+    }
+  }
 }
 
 // Export singleton instance
