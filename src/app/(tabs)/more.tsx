@@ -2,57 +2,90 @@ import React from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName } from '@/components/icons';
+import { router } from 'expo-router';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
-      <Text style={styles.headerTitle}>Thêm</Text>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
+        <Text style={styles.headerTitle}>Cài đặt & Thêm</Text>
+      </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         
-        {/* User Profile Summary */}
-        <Pressable style={styles.profileCard}>
-          <View style={styles.profileAvatar}>
-            <Icon name="account_circle" color="#00f2ea" size={40} />
+        {/* Profile Section */}
+        <Animated.View entering={FadeInUp.duration(500)} style={styles.profileSection}>
+          <View style={styles.avatarContainer}>
+            <Icon name="account_circle" size={60} color="#94a3b8" />
+            <View style={styles.editAvatarBadge}>
+              <Icon name="edit" size={12} color="#ffffff" />
+            </View>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Khách</Text>
-            <Text style={styles.profileDesc}>Đăng nhập để nhận thông báo</Text>
+            <Text style={styles.profileName}>Nguyễn Văn A</Text>
+            <Text style={styles.profileEmail}>nguyenvana@example.com</Text>
           </View>
-          <Icon name="arrow_forward" color="#b9cac8" size={20} />
-        </Pressable>
+        </Animated.View>
 
-        <Text style={styles.sectionTitle}>Tùy chọn</Text>
+        {/* Menu Sections */}
+        <Animated.View entering={FadeInUp.duration(500).delay(100)} style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>Tài khoản</Text>
+          <MenuRow icon="person_outline" title="Chỉnh sửa thông tin" />
+          <MenuRow icon="lock_outline" title="Đổi mật khẩu" />
+          <MenuRow icon="notifications_none" title="Cài đặt thông báo" />
+          
+          <Pressable 
+            style={styles.menuRow}
+            onPress={() => router.push('/admin')}
+          >
+            <View style={styles.menuRowLeft}>
+              <View style={styles.iconContainer}>
+                <Icon name="admin_panel_settings" size={22} color="#818cf8" />
+              </View>
+              <Text style={styles.menuRowTitle}>Quản trị viên (Admin)</Text>
+            </View>
+            <Icon name="chevron_right" size={20} color="#94a3b8" />
+          </Pressable>
+        </Animated.View>
 
-        {/* Menu Items */}
-        <View style={styles.menuContainer}>
-          <MenuItem icon="notifications" title="Cài đặt thông báo" />
-          <MenuItem icon="map" title="Khu vực quan tâm" />
-          <MenuItem icon="tune" title="Giao diện & Bản đồ" />
-        </View>
+        <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>Ứng dụng</Text>
+          <MenuRow icon="language" title="Ngôn ngữ" value="Tiếng Việt" />
+          <MenuRow icon="dark_mode" title="Giao diện" value="Tự động" />
+          <MenuRow icon="help_outline" title="Trợ giúp & Hỗ trợ" />
+          <MenuRow icon="info_outline" title="Giới thiệu về HCMVision" value="v1.0.0" />
+        </Animated.View>
 
-        <Text style={styles.sectionTitle}>Cộng đồng & Hỗ trợ</Text>
+        {/* Logout Button */}
+        <Animated.View entering={FadeInUp.duration(500).delay(300)}>
+          <Pressable style={styles.logoutButton}>
+            <Icon name="logout" size={20} color="#ef4444" />
+            <Text style={styles.logoutText}>Đăng xuất</Text>
+          </Pressable>
+        </Animated.View>
 
-        <View style={styles.menuContainer}>
-          <MenuItem icon="videocam" title="Đóng góp dữ liệu ngập" />
-          <MenuItem icon="refresh" title="Về HCMRainVision" hideBorder />
-        </View>
-        
+        <View style={{ height: 100 }} />
       </ScrollView>
     </View>
   );
 }
 
-function MenuItem({ icon, title, hideBorder = false }: { icon: IconName; title: string; hideBorder?: boolean }) {
+function MenuRow({ icon, title, value }: { icon: IconName; title: string; value?: string }) {
   return (
-    <Pressable style={[styles.menuItem, !hideBorder && styles.menuItemBorder]}>
-      <View style={styles.menuIcon}>
-        <Icon name={icon} color="#d4e4fa" size={20} />
+    <Pressable style={styles.menuRow}>
+      <View style={styles.menuRowLeft}>
+        <View style={styles.iconContainer}>
+          <Icon name={icon} size={22} color="#64748b" />
+        </View>
+        <Text style={styles.menuRowTitle}>{title}</Text>
       </View>
-      <Text style={styles.menuText}>{title}</Text>
-      <Icon name="arrow_forward" color="#849492" size={16} />
+      <View style={styles.menuRowRight}>
+        {value && <Text style={styles.menuRowValue}>{value}</Text>}
+        <Icon name="chevron_right" size={20} color="#94a3b8" />
+      </View>
     </Pressable>
   );
 }
@@ -60,31 +93,17 @@ function MenuItem({ icon, title, hideBorder = false }: { icon: IconName; title: 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#051424',
-    paddingHorizontal: 16,
+    backgroundColor: '#0f172a',
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    backgroundColor: '#1e293b',
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '800',
-    color: '#d4e4fa',
-    marginBottom: 24,
-    letterSpacing: -0.6,
-  },
-  content: {
-    flex: 1,
-  },
-  profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(25, 30, 40, 0.65)',
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    marginBottom: 32,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
     shadowRadius: 12,
     elevation: 3,
   },
