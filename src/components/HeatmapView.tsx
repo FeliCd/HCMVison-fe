@@ -5,7 +5,7 @@ import MapView, { Heatmap, PROVIDER_GOOGLE } from 'react-native-maps';
 export default function HeatmapView({ heatmapData, mapRegion }: any) {
   return (
     <MapView
-      style={StyleSheet.absoluteFillObject}
+      style={StyleSheet.absoluteFill}
       initialRegion={mapRegion}
       provider={PROVIDER_GOOGLE}
       userInterfaceStyle="dark"

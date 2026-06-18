@@ -95,6 +95,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f172a',
   },
+  scrollContent: {
+    padding: 20,
+  },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -104,19 +107,25 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    shadowRadius: 12,
-    elevation: 3,
+    fontWeight: '700',
+    color: '#ffffff',
   },
-  profileAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
+  profileSection: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 32,
+  },
+  avatarContainer: {
+    position: 'relative',
     marginRight: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  editAvatarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    padding: 4,
   },
   profileInfo: {
     flex: 1,
@@ -124,58 +133,70 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#d4e4fa',
+    color: '#ffffff',
   },
-  profileDesc: {
-    fontSize: 13,
-    color: '#b9cac8',
-    marginTop: 4,
+  profileEmail: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  menuSection: {
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#b9cac8',
+    color: '#64748b',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 12,
     marginLeft: 4,
   },
-  menuContainer: {
-    backgroundColor: 'rgba(25, 30, 40, 0.65)',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    marginBottom: 24,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  menuItem: {
+  menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    backgroundColor: '#1e293b',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
   },
-  menuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  menuIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: 'rgba(5, 20, 36, 0.6)',
-    justifyContent: 'center',
+  menuRowLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
   },
-  menuText: {
-    flex: 1,
+  menuRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuRowTitle: {
     fontSize: 15,
-    color: '#d4e4fa',
+    color: '#e2e8f0',
+    fontWeight: '500',
+    marginLeft: 12,
+  },
+  menuRowValue: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginRight: 8,
+  },
+  iconContainer: {
+    width: 32,
+    alignItems: 'center',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  logoutText: {
+    color: '#ef4444',
+    fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
   },
 });

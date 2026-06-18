@@ -37,7 +37,22 @@ export type IconName =
   | 'warning'
   | 'visibility'
   | 'visibility_off'
-  | 'close';
+  | 'close'
+  | 'water_damage'
+  | 'car_crash'
+  | 'grid_view'
+  | 'bar_chart'
+  | 'info_outline'
+  | 'person_outline'
+  | 'lock_outline'
+  | 'notifications_none'
+  | 'admin_panel_settings'
+  | 'dark_mode'
+  | 'language'
+  | 'help_outline'
+  | 'update'
+  | 'security'
+  | 'edit';
 
 interface IconProps {
   name: IconName;
@@ -370,6 +385,112 @@ export function Icon({ name, color = '#ffffff', size = 24, style }: IconProps) {
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
           <Path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
           <Path d="M1 1l22 22" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'water_damage':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-2.76 0-5-2.24-5-5 0-3.53 2.69-6.56 5-8.93 2.31 2.37 5 5.4 5 8.93 0 2.76-2.24 5-5 5z" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          <Path d="M8 14h8M9 17h6" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+        </Svg>
+      );
+    case 'car_crash':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M3 17h2m14 0h2M5 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0zm10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0z" stroke={color} strokeWidth={2} strokeLinecap="round" />
+          <Path d="M5 17H3v-4l2-5h10l2 4h2a1 1 0 0 1 1 1v4h-2" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M10 2l2 3-2 3M14 2l-2 3 2 3" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'grid_view':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Rect x="3" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth={2} />
+          <Rect x="14" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth={2} />
+          <Rect x="3" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth={2} />
+          <Rect x="14" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth={2} />
+        </Svg>
+      );
+    case 'bar_chart':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M3 20h18M8 20V10M12 20V4M16 20v-7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'info_outline':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={2} />
+          <Path d="M12 16v-4M12 8h.01" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'person_outline':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'lock_outline':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M7 11V7a5 5 0 0 1 10 0v4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'notifications_none':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9m4.3 13a3 3 0 0 0 5.4 0" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'admin_panel_settings':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M12 2L4 5v6c0 5.25 3.5 10.15 8 11.5C16.5 21.15 20 16.25 20 11V5l-8-3z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx="12" cy="10" r="2" stroke={color} strokeWidth={2} />
+          <Path d="M9 15a3 3 0 0 1 6 0" stroke={color} strokeWidth={2} strokeLinecap="round" />
+        </Svg>
+      );
+    case 'dark_mode':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'language':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={2} />
+          <Path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'help_outline':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth={2} />
+          <Path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'update':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M21 3v5h-5M12 7v5l4 2" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'security':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="m9 12 2 2 4-4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'edit':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       );
     default:
