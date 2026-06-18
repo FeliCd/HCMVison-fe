@@ -20,9 +20,11 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { WebView } from 'react-native-webview';
+import * as Location from 'expo-location';
 
 import { Icon } from '@/components/icons';
 import { useWeather } from '@/hooks/useWeather';
+import { useCamera } from '@/hooks/useCamera';
 import { useTheme } from '@/hooks/useTheme';
 import { WeatherLog } from '@/types/api';
 
@@ -44,7 +46,6 @@ type MapLocation = {
 function toMapLocation(log: WeatherLog): MapLocation {
   const isJam = log.trafficLevel === 'jam' || log.trafficLevel === 'slow';
   const type: MapLocation['type'] = log.isRaining && isJam ? 'combine' : log.isRaining ? 'rain' : 'traffic';
-  // Red for combine/rain, Orange/Yellow for traffic jam, Green for clear
   let markerColor = '#10b981'; // Default green
   if (type === 'combine' || type === 'rain') markerColor = '#ffb4ab'; // Red
   else if (isJam) markerColor = '#f59e0b'; // Orange
@@ -61,8 +62,6 @@ function toMapLocation(log: WeatherLog): MapLocation {
   };
 }
 
-
-
 const mapHtml = (isDark: boolean) => `
 <!DOCTYPE html>
 <html>
@@ -72,13 +71,18 @@ const mapHtml = (isDark: boolean) => `
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { padding: 0; margin: 0; }
-        html, body, #map { height: 100%; width: 100%; background-color: ; }
+        html, body, #map { height: 100%; width: 100%; background-color: ${isDark ? '#051424' : '#f1f5f9'}; }
         /* Dark theme filters for map tiles */
         .leaflet-layer,
         .leaflet-control-zoom-in,
         .leaflet-control-zoom-out,
         .leaflet-control-attribution {
-          
+          ${isDark ? 'filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);' : ''}
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
         }
     </style>
 </head>
@@ -88,14 +92,13 @@ const mapHtml = (isDark: boolean) => `
         var map = L.map('map', {
             zoomControl: false,
             maxBounds: [
-                [10.35, 106.35], // Southwest
-                [11.15, 107.05]  // Northeast
+                [10.35, 106.35],
+                [11.15, 107.05]
             ],
             maxBoundsViscosity: 1.0,
             minZoom: 10
         }).setView([10.7626, 106.6602], 11);
 
-        // Google Maps with Traffic Tile Layer
         L.tileLayer('https://mt1.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', {
             maxZoom: 20,
             attribution: '© Google'
@@ -105,7 +108,6 @@ const mapHtml = (isDark: boolean) => `
         window.markerMap = {};
 
         window.setMarkers = function(locsJson) {
-            // Clear existing markers
             if (window.activeMarkers) {
                 window.activeMarkers.forEach(m => map.removeLayer(m));
             }
@@ -129,12 +131,22 @@ const mapHtml = (isDark: boolean) => `
                 window.markerMap[id].openPopup();
             }
         };
+
+        var userMarker = null;
+        window.setUserLocation = function(lat, lng) {
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+            var dotHtml = '<div style="background-color:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow: 0 0 10px #3b82f6; animation: pulse 1.5s infinite;"></div>';
+            var customIcon = L.divIcon({className: 'custom-icon', html: dotHtml});
+            userMarker = L.marker([lat, lng], {icon: customIcon}).addTo(map);
+            map.setView([lat, lng], 15);
+        };
     </script>
 </body>
 </html>
 `;
 
-// Main Map Landing Page Screen
 export default function TabTwoScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -145,33 +157,54 @@ export default function TabTwoScreen() {
   const [locations, setLocations] = useState<MapLocation[]>([]);
 
   const { logs, getWeatherLogs } = useWeather();
+  const { cameras, getCameras } = useCamera();
   const { colors, isDark } = useTheme();
   const webViewRef = useRef<WebView>(null);
 
-  // Load weather logs từ API
   useEffect(() => {
-    getWeatherLogs(60, 500); // Lấy logs trong 60 phút, tối đa 500 records
+    getWeatherLogs(60, 500);
+    getCameras(undefined, 1, 1000);
   }, []);
 
-  // Khi có data mới từ API, lấy log mới nhất của mỗi camera và convert sang MapLocation
   useEffect(() => {
-    if (logs.length > 0) {
-      const latestLogsMap = new Map<string, WeatherLog>();
-      logs.forEach(log => {
-        if (!latestLogsMap.has(log.cameraId)) {
-          latestLogsMap.set(log.cameraId, log);
-        }
-      });
-      const latestLogs = Array.from(latestLogsMap.values());
-      setLocations(latestLogs.map(toMapLocation));
-    }
-  }, [logs]);
+    const latestLogsMap = new Map<string, WeatherLog>();
+    logs.forEach(log => {
+      if (!latestLogsMap.has(log.cameraId)) {
+        latestLogsMap.set(log.cameraId, log);
+      }
+    });
+
+    const mergedLocations: MapLocation[] = cameras.map(camera => {
+      const log = latestLogsMap.get(camera.id);
+      if (log) {
+        return toMapLocation(log);
+      }
+      return {
+        id: camera.id,
+        name: camera.name || camera.id,
+        address: camera.wardName || 'Khu vực',
+        lat: camera.latitude,
+        lng: camera.longitude,
+        status: 'Chưa có thông tin thời tiết',
+        type: 'combine',
+        markerColor: '#94a3b8',
+      };
+    });
+
+    const cameraIds = new Set(cameras.map(c => c.id));
+    latestLogsMap.forEach(log => {
+      if (!cameraIds.has(log.cameraId)) {
+        mergedLocations.push(toMapLocation(log));
+      }
+    });
+
+    setLocations(mergedLocations);
+  }, [logs, cameras]);
 
   const bottomBarHeight = 64 + insets.bottom;
   const fabsBottom = bottomBarHeight + 16;
   const infoPanelBottom = bottomBarHeight + 12;
 
-  // Pulsing dot for "Cập nhật 5 phút trước"
   const dotOpacity = useSharedValue(0.5);
   useEffect(() => {
     dotOpacity.value = withRepeat(
@@ -184,7 +217,6 @@ export default function TabTwoScreen() {
     opacity: dotOpacity.value,
   }));
 
-  // Location FAB press
   const locScale = useSharedValue(1);
   const locStyle = useAnimatedStyle(() => ({
     transform: [{ scale: locScale.value }],
@@ -195,7 +227,7 @@ export default function TabTwoScreen() {
       if (activeSegment === 'combine') return true;
       return loc.type === activeSegment || loc.type === 'combine';
     });
-    const locsString = JSON.stringify(filtered).replace(/'/g, "\\'");
+    const locsString = JSON.stringify(filtered).replace(/'/g, "\\\\'");
     webViewRef.current?.injectJavaScript(`
       if (window.setMarkers) {
         window.setMarkers('${locsString}');
@@ -206,7 +238,7 @@ export default function TabTwoScreen() {
 
   useEffect(() => {
     syncMarkers();
-  }, [activeSegment]);
+  }, [activeSegment, locations]);
 
   const handleSearchChange = (text: string) => {
     setSearchText(text);
@@ -229,7 +261,6 @@ export default function TabTwoScreen() {
     setShowSuggestions(false);
     Keyboard.dismiss();
     
-    // Focus map and open popup
     webViewRef.current?.injectJavaScript(`
       if (window.focusLocation) {
         window.focusLocation('${loc.id}', ${loc.lat}, ${loc.lng}, 15);
@@ -238,16 +269,27 @@ export default function TabTwoScreen() {
     `);
   };
 
-  const handleLocationPress = () => {
-    webViewRef.current?.injectJavaScript(`
-      map.setView([10.7626, 106.6822], 11.5);
-      true;
-    `);
+  const handleLocationPress = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Cần cấp quyền vị trí để sử dụng tính năng này.');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      webViewRef.current?.injectJavaScript(`
+        if (window.setUserLocation) {
+          window.setUserLocation(${location.coords.latitude}, ${location.coords.longitude});
+        }
+        true;
+      `);
+    } catch (e) {
+      alert('Không thể lấy vị trí hiện tại.');
+    }
   };
 
   return (
-    <View style={styles.container}>
-      {/* 1. Real Map Layer using Leaflet via WebView */}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <WebView
         ref={webViewRef}
         style={StyleSheet.absoluteFill}
@@ -257,16 +299,14 @@ export default function TabTwoScreen() {
         onLoadEnd={syncMarkers}
       />
 
-      {/* 3. Top UI Layer (Search & Filters) */}
       <View style={[styles.topUiContainer, { paddingTop: Math.max(insets.top, 16) }]}>
-        {/* Search Input and Dropdown */}
         <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Icon name="search" color="#b9cac8" size={20} />
+          <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Icon name="search" color={colors.textMuted} size={20} />
             <TextInput
               placeholder="Tìm camera, phường hoặc khu vực"
-              placeholderTextColor="#b9cac8"
-              style={styles.searchInput}
+              placeholderTextColor={colors.textMuted}
+              style={[styles.searchInput, { color: colors.text }]}
               value={searchText}
               onChangeText={handleSearchChange}
               onFocus={() => {
@@ -284,29 +324,28 @@ export default function TabTwoScreen() {
                   setShowSuggestions(false);
                 }}
               >
-                <Icon name="close" color="#849492" size={18} />
+                <Icon name="close" color={colors.textMuted} size={18} />
               </Pressable>
             ) : (
-              <Pressable style={styles.micButton}>
-                <Icon name="mic" color="#29fcf3" size={18} />
+              <Pressable style={[styles.micButton, { borderColor: colors.border }]}>
+                <Icon name="mic" color={colors.primary} size={18} />
               </Pressable>
             )}
           </View>
 
-          {/* Suggestions Dropdown */}
           {showSuggestions && suggestions.length > 0 && (
-            <View style={styles.suggestionsDropdown}>
+            <View style={[styles.suggestionsDropdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 200 }}>
                 {suggestions.map((loc) => (
                   <Pressable
                     key={loc.id}
-                    style={styles.suggestionItem}
+                    style={[styles.suggestionItem, { borderBottomColor: colors.border }]}
                     onPress={() => handleSelectSuggestion(loc)}
                   >
-                    <Icon name="location_on" color="#29fcf3" size={18} />
+                    <Icon name="location_on" color={colors.primary} size={18} />
                     <View style={styles.suggestionTextContainer}>
-                      <Text style={styles.suggestionName}>{loc.name}</Text>
-                      <Text style={styles.suggestionAddress}>{loc.address}</Text>
+                      <Text style={[styles.suggestionName, { color: colors.text }]}>{loc.name}</Text>
+                      <Text style={[styles.suggestionAddress, { color: colors.textMuted }]}>{loc.address}</Text>
                     </View>
                   </Pressable>
                 ))}
@@ -315,32 +354,28 @@ export default function TabTwoScreen() {
           )}
         </View>
 
-        {/* Status Chips */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.chipsScrollView}
           contentContainerStyle={styles.chipsContainer}
         >
-          {/* Raining chip từ API */}
-          <View style={styles.statusChipRed}>
-            <Icon name="rainy" color="#ffb4ab" size={14} />
-            <Text style={styles.statusChipRedText}>
+          <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
+            <Icon name="rainy" color={colors.danger} size={14} />
+            <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
               Đang mưa: {locations.filter(l => l.type === 'rain' || l.type === 'combine').length} camera
             </Text>
           </View>
 
-          {/* Jam chip từ API */}
-          <View style={styles.statusChipRed}>
-            <Icon name="traffic" color="#ffb4ab" size={14} />
-            <Text style={styles.statusChipRedText}>
+          <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
+            <Icon name="traffic" color={colors.danger} size={14} />
+            <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
               Kẹt xe/chậm: {locations.filter(l => l.type === 'traffic' || l.type === 'combine').length} điểm
             </Text>
           </View>
         </ScrollView>
 
-        {/* Segmented Picker */}
-        <View style={styles.segmentedControl}>
+        <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
           {(['rain', 'traffic', 'combine'] as const).map((seg) => {
             const labels = { rain: 'Mưa', traffic: 'Giao thông', combine: 'Kết hợp' };
             const isActive = activeSegment === seg;
@@ -348,9 +383,9 @@ export default function TabTwoScreen() {
               <Pressable
                 key={seg}
                 onPress={() => setActiveSegment(seg)}
-                style={[styles.segmentBtn, isActive && styles.segmentBtnActive]}
+                style={[styles.segmentBtn, isActive && { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
-                <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>
+                <Text style={[styles.segmentText, { color: colors.textMuted }, isActive && { color: colors.primary, fontWeight: '700' }]}>
                   {labels[seg]}
                 </Text>
               </Pressable>
@@ -359,36 +394,34 @@ export default function TabTwoScreen() {
         </View>
       </View>
 
-      {/* 4. Floating Action Buttons (FABs) */}
       <View style={[styles.fabsContainer, { bottom: fabsBottom }]}>
-        <Pressable style={styles.fabItem}>
-          <Icon name="map" color="#d4e4fa" size={20} />
+        <Pressable style={[styles.fabItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Icon name="map" color={colors.text} size={20} />
         </Pressable>
 
-        <Pressable style={styles.fabItem}>
-          <Icon name="tune" color="#d4e4fa" size={20} />
+        <Pressable style={[styles.fabItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Icon name="tune" color={colors.text} size={20} />
         </Pressable>
 
-        <Pressable style={styles.fabItem}>
-          <Icon name="refresh" color="#d4e4fa" size={20} />
+        <Pressable style={[styles.fabItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Icon name="refresh" color={colors.text} size={20} />
         </Pressable>
 
         <AnimatedPressable
-          style={[styles.fabItem, styles.fabLocation, locStyle]}
+          style={[styles.fabItem, styles.fabLocation, locStyle, { backgroundColor: colors.primary }]}
           onPressIn={() => { locScale.value = withSpring(0.88, { damping: 12 }); }}
           onPressOut={() => { locScale.value = withSpring(1, { damping: 12 }); }}
           onPress={handleLocationPress}
         >
-          <Icon name="my_location" color="#003735" size={22} />
+          <Icon name="my_location" color="#000000" size={22} />
         </AnimatedPressable>
       </View>
 
-      {/* 5. Bottom Info Panel */}
-      <View style={[styles.infoPanel, { bottom: infoPanelBottom }]}>
+      <View style={[styles.infoPanel, { bottom: infoPanelBottom, backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
         <Animated.View style={[styles.infoPanelDot, pulseDotStyle]} />
         <View style={styles.infoPanelTextContainer}>
-          <Text style={styles.infoPanelTitle}>Cập nhật 5 phút trước</Text>
-          <Text style={styles.infoPanelSubtitle}>Nguồn: Cổng TTGT TP.HCM</Text>
+          <Text style={[styles.infoPanelTitle, { color: colors.text }]}>Cập nhật 5 phút trước</Text>
+          <Text style={[styles.infoPanelSubtitle, { color: colors.textMuted }]}>Nguồn: Cổng TTGT TP.HCM</Text>
         </View>
       </View>
     </View>
@@ -398,9 +431,7 @@ export default function TabTwoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#051424',
   },
-  // Top UI Layout
   topUiContainer: {
     position: 'absolute',
     top: 0,
@@ -416,9 +447,7 @@ const styles = StyleSheet.create({
   searchBar: {
     height: 50,
     borderRadius: 16,
-    backgroundColor: 'rgba(25, 30, 40, 0.75)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -430,25 +459,20 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: '#d4e4fa',
     fontSize: 14,
     marginLeft: 10,
     padding: 0,
     ...Platform.select({
-      web: {
-        outlineStyle: 'none' as any,
-      },
+      web: { outlineStyle: 'none' as any },
     }),
   },
   micButton: {
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   clearButton: {
     width: 32,
@@ -460,9 +484,7 @@ const styles = StyleSheet.create({
   suggestionsDropdown: {
     marginTop: 8,
     borderRadius: 16,
-    backgroundColor: 'rgba(25, 30, 40, 0.88)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
@@ -476,19 +498,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
     gap: 12,
   },
   suggestionTextContainer: {
     flex: 1,
   },
   suggestionName: {
-    color: '#d4e4fa',
     fontSize: 14,
     fontWeight: '700',
   },
   suggestionAddress: {
-    color: '#849492',
     fontSize: 11,
     marginTop: 2,
   },
@@ -503,8 +522,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: 'rgba(255, 180, 171, 0.2)',
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -513,12 +530,9 @@ const styles = StyleSheet.create({
   statusChipRedText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#ffb4ab',
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(25, 30, 40, 0.75)',
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     borderWidth: 1,
     borderRadius: 14,
     padding: 3,
@@ -537,20 +551,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  segmentBtnActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
   segmentText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#b9cac8',
   },
-  segmentTextActive: {
-    color: '#00f2ea',
-    fontWeight: '700',
-  },
-  // Fabs Container
   fabsContainer: {
     position: 'absolute',
     right: 16,
@@ -562,8 +566,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(25, 30, 40, 0.75)',
-    borderColor: 'rgba(255, 255, 255, 0.14)',
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -574,27 +576,15 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   fabLocation: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#00f2ea',
-    borderColor: 'transparent',
     marginTop: 4,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
+    borderWidth: 0,
   },
-  // Bottom Left Info Panel
   infoPanel: {
     position: 'absolute',
     left: 16,
     zIndex: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(25, 30, 40, 0.8)',
-    borderColor: 'rgba(255, 255, 255, 0.14)',
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 14,
@@ -619,11 +609,9 @@ const styles = StyleSheet.create({
   infoPanelTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#d4e4fa',
   },
   infoPanelSubtitle: {
     fontSize: 10,
-    color: '#b9cac8',
     marginTop: 2,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,12 +8,16 @@ import {
   ScrollView,
   ActivityIndicator,
   Keyboard,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
-import { Icon } from '@/components/icons';
+import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
+
+import { Icon } from '@/components/icons';
 import apiClient from '@/services/api';
+import { useTheme } from '@/hooks/useTheme';
 
 interface RouteData {
   id: string;
@@ -23,15 +27,94 @@ interface RouteData {
   isSafe: boolean;
   warnings: any[];
   badTrafficWarnings: any[];
+  coordinates: {lat: number; lng: number}[];
 }
+
+const mapHtml = (isDark: boolean) => `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { padding: 0; margin: 0; }
+        html, body, #map { height: 100%; width: 100%; background-color: ${isDark ? '#051424' : '#f1f5f9'}; }
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out, .leaflet-control-attribution {
+          ${isDark ? 'filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);' : ''}
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        var map = L.map('map', {
+            zoomControl: false,
+            maxBounds: [[10.35, 106.35], [11.15, 107.05]],
+            maxBoundsViscosity: 1.0,
+            minZoom: 10
+        }).setView([10.7626, 106.6602], 12);
+
+        L.tileLayer('https://mt1.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            attribution: '© Google'
+        }).addTo(map);
+
+        window.routeLayers = [];
+        window.markers = [];
+
+        window.drawRoutes = function(routesJson, selectedRouteId) {
+            var routes = JSON.parse(routesJson);
+            
+            window.routeLayers.forEach(l => map.removeLayer(l));
+            window.markers.forEach(m => map.removeLayer(m));
+            window.routeLayers = [];
+            window.markers = [];
+
+            if (routes.length === 0) return;
+
+            var bounds = L.latLngBounds();
+
+            routes.forEach(route => {
+                if (route.id === selectedRouteId) return;
+                var polyline = L.polyline(route.coordinates, {color: '#94a3b8', weight: 4, opacity: 0.6}).addTo(map);
+                window.routeLayers.push(polyline);
+            });
+
+            var selectedRoute = routes.find(r => r.id === selectedRouteId) || routes[0];
+            var mainColor = selectedRoute.isSafe ? '#3b82f6' : '#ef4444';
+            var mainPolyline = L.polyline(selectedRoute.coordinates, {color: mainColor, weight: 6, opacity: 0.9}).addTo(map);
+            window.routeLayers.push(mainPolyline);
+
+            selectedRoute.coordinates.forEach(c => bounds.extend(c));
+
+            var startCoord = selectedRoute.coordinates[0];
+            var endCoord = selectedRoute.coordinates[selectedRoute.coordinates.length - 1];
+            
+            var startIcon = L.divIcon({className: 'custom-icon', html: '<div style="background-color:#00f2ea;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow: 0 0 8px #00f2ea;"></div>'});
+            var endIcon = L.divIcon({className: 'custom-icon', html: '<div style="background-color:#ffb4ab;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow: 0 0 8px #ffb4ab;"></div>'});
+            
+            window.markers.push(L.marker(startCoord, {icon: startIcon}).addTo(map));
+            window.markers.push(L.marker(endCoord, {icon: endIcon}).addTo(map));
+
+            map.fitBounds(bounds, {padding: [40, 40]});
+        };
+    </script>
+</body>
+</html>
+`;
 
 export default function RouteScreen() {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+  const webViewRef = useRef<WebView>(null);
+
   const [from, setFrom] = useState('Vị trí hiện tại');
   const [to, setTo] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [routes, setRoutes] = useState<RouteData[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleSwap = () => {
@@ -50,12 +133,12 @@ export default function RouteScreen() {
     setLoading(true);
     setErrorMsg('');
     setRoutes([]);
+    setSelectedRouteId(null);
 
     try {
       let startCoord = null;
       let endCoord = null;
 
-      // 1. Resolve start location
       if (from.toLowerCase() === 'vị trí hiện tại' || from.toLowerCase() === 'my location') {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -63,7 +146,20 @@ export default function RouteScreen() {
           setLoading(false);
           return;
         }
-        let location = await Location.getCurrentPositionAsync({});
+        
+        let location;
+        try {
+          location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        } catch (locErr) {
+          console.warn('getCurrentPositionAsync failed, trying last known position...', locErr);
+          location = await Location.getLastKnownPositionAsync({});
+        }
+
+        if (!location) {
+          setErrorMsg('Không thể lấy được vị trí hiện tại của thiết bị.');
+          setLoading(false);
+          return;
+        }
         startCoord = { lat: location.coords.latitude, lng: location.coords.longitude };
       } else {
         startCoord = await apiClient.geocodeAddress(from);
@@ -74,7 +170,6 @@ export default function RouteScreen() {
         }
       }
 
-      // 2. Resolve end location
       endCoord = await apiClient.geocodeAddress(to);
       if (!endCoord) {
         setErrorMsg(`Không tìm thấy địa chỉ: ${to}`);
@@ -82,7 +177,6 @@ export default function RouteScreen() {
         return;
       }
 
-      // 3. Call OSRM for routes
       const osrmData = await apiClient.getOSRMRoutes(
         startCoord.lng,
         startCoord.lat,
@@ -96,17 +190,16 @@ export default function RouteScreen() {
         return;
       }
 
-      // 4. For each route, check safety with our backend
       const loadedRoutes: RouteData[] = [];
       
       for (let i = 0; i < osrmData.routes.length; i++) {
         const routeObj = osrmData.routes[i];
         
-        // geometry.coordinates is array of [lng, lat]
         const coords = routeObj.geometry.coordinates;
         if (!coords || coords.length === 0) continue;
 
         const routePoints = coords.map((c: any) => ({ lat: c[1], lng: c[0] }));
+        const leafletCoords = coords.map((c: any) => ({ lat: c[1], lng: c[0] }));
 
         try {
           const checkRes = await apiClient.checkRoute({ routePoints });
@@ -115,8 +208,6 @@ export default function RouteScreen() {
           const distanceKm = (routeObj.distance / 1000).toFixed(1);
           const durationMin = Math.round(routeObj.duration / 60).toString();
           
-          // Generate a summary (e.g., street name if available, or generic)
-          // OSRM provides legs[0].summary
           let summaryText = 'Tuyến đường thay thế';
           if (routeObj.legs && routeObj.legs.length > 0 && routeObj.legs[0].summary) {
             summaryText = `Qua ${routeObj.legs[0].summary}`;
@@ -132,6 +223,7 @@ export default function RouteScreen() {
             isSafe: safetyData.isRouteSafe,
             warnings: safetyData.warnings || [],
             badTrafficWarnings: safetyData.badTrafficWarnings || [],
+            coordinates: leafletCoords,
           });
         } catch (err) {
           console.warn('Check route safety failed for a route', err);
@@ -139,60 +231,94 @@ export default function RouteScreen() {
       }
 
       setRoutes(loadedRoutes);
+      if (loadedRoutes.length > 0) {
+        setSelectedRouteId(loadedRoutes[0].id);
+      }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg('Đã có lỗi xảy ra khi tìm đường');
+      setErrorMsg(err.message || 'Đã có lỗi xảy ra khi tìm đường');
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (routes.length > 0 && selectedRouteId) {
+      const routesJson = JSON.stringify(routes.map(r => ({
+        id: r.id,
+        isSafe: r.isSafe,
+        coordinates: r.coordinates
+      }))).replace(/'/g, "\\\\'");
+
+      webViewRef.current?.injectJavaScript(`
+        if (window.drawRoutes) {
+          window.drawRoutes('${routesJson}', '${selectedRouteId}');
+        }
+        true;
+      `);
+    }
+  }, [routes, selectedRouteId]);
+
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
-      <Animated.Text entering={FadeInUp.duration(500)} style={styles.headerTitle}>Tuyến đường</Animated.Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
+        <Animated.Text entering={FadeInUp.duration(500)} style={[styles.headerTitle, { color: colors.text }]}>Tuyến đường</Animated.Text>
+      </View>
 
-      {/* Input Section */}
-      <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.inputCard}>
-        <View style={styles.inputRow}>
-          <View style={styles.inputDotGreen} />
-          <TextInput
-            style={styles.input}
-            value={from}
-            onChangeText={setFrom}
-            placeholder="Điểm xuất phát"
-            placeholderTextColor="#b9cac8"
-            onSubmitEditing={handleSearch}
+      <View style={[styles.topHalf, { borderColor: colors.border }]}>
+        {Platform.OS === 'web' ? (
+          <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#051424' : '#f1f5f9' }]}>
+            <Text style={{ color: colors.text, fontSize: 16 }}>Bản đồ không hỗ trợ trên Web</Text>
+          </View>
+        ) : (
+          <WebView
+            ref={webViewRef}
+            style={StyleSheet.absoluteFill}
+            source={{ html: mapHtml(isDark) }}
+            scrollEnabled={false}
+            bounces={false}
           />
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.inputRow}>
-          <View style={styles.inputDotRed} />
-          <TextInput
-            style={styles.input}
-            value={to}
-            onChangeText={setTo}
-            placeholder="Điểm đến"
-            placeholderTextColor="#b9cac8"
-            onSubmitEditing={handleSearch}
-          />
-        </View>
-        
-        {/* Swap Button */}
-        <Pressable style={styles.swapButton} onPress={handleSwap}>
-          <Icon name="refresh" color="#00f2ea" size={16} />
-        </Pressable>
+        )}
+        <Animated.View entering={FadeInUp.duration(600).delay(100)} style={[styles.inputOverlay, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
+          <View style={styles.inputRow}>
+            <View style={styles.inputDotGreen} />
+            <TextInput
+              style={[styles.input, { color: colors.text }]}
+              value={from}
+              onChangeText={setFrom}
+              placeholder="Điểm xuất phát"
+              placeholderTextColor={colors.textMuted}
+              onSubmitEditing={handleSearch}
+            />
+          </View>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <View style={styles.inputRow}>
+            <View style={styles.inputDotRed} />
+            <TextInput
+              style={[styles.input, { color: colors.text }]}
+              value={to}
+              onChangeText={setTo}
+              placeholder="Điểm đến"
+              placeholderTextColor={colors.textMuted}
+              onSubmitEditing={handleSearch}
+            />
+          </View>
+          
+          <Pressable style={[styles.swapButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handleSwap}>
+            <Icon name="refresh" color={colors.primary} size={16} />
+          </Pressable>
 
-        {/* Search Button */}
-        <Pressable style={styles.searchButton} onPress={handleSearch}>
-          {loading ? (
-            <ActivityIndicator size="small" color="#051424" />
-          ) : (
-            <Text style={styles.searchButtonText}>Tìm đường</Text>
-          )}
-        </Pressable>
-      </Animated.View>
+          <Pressable style={[styles.searchButton, { backgroundColor: colors.primary }]} onPress={handleSearch}>
+            {loading ? (
+              <ActivityIndicator size="small" color="#051424" />
+            ) : (
+              <Text style={styles.searchButtonText}>Tìm đường</Text>
+            )}
+          </Pressable>
+        </Animated.View>
+      </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView style={styles.bottomHalf} contentContainerStyle={{ paddingBottom: 40 }}>
         {errorMsg ? (
            <Animated.View entering={FadeInUp.duration(400)} style={styles.errorBox}>
              <Icon name="warning" color="#fca5a5" size={20} />
@@ -201,13 +327,14 @@ export default function RouteScreen() {
         ) : null}
 
         {routes.length > 0 && (
-          <Animated.Text entering={FadeInUp.duration(500).delay(200)} style={styles.sectionTitle}>
+          <Animated.Text entering={FadeInUp.duration(500).delay(200)} style={[styles.sectionTitle, { color: colors.textMuted }]}>
             Đề xuất tuyến đường
           </Animated.Text>
         )}
 
         {routes.map((route, index) => {
           const isWarning = !route.isSafe || route.warnings.length > 0 || route.badTrafficWarnings.length > 0;
+          const isSelected = selectedRouteId === route.id;
           
           let mainWarning = 'Tuyến đường tối ưu nhất hiện tại. Không có ngập nước hoặc kẹt xe.';
           let shortStatus = 'Thông thoáng';
@@ -229,19 +356,27 @@ export default function RouteScreen() {
 
           return (
             <Animated.View key={route.id} entering={FadeInUp.duration(600).delay(300 + index * 150)} layout={Layout.springify()}>
-              <Pressable style={[styles.routeCard, isWarning && styles.routeCardWarning]}>
+              <Pressable 
+                style={[
+                  styles.routeCard, 
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  isWarning && { borderColor: colors.dangerMuted },
+                  isSelected && { borderColor: colors.primary, borderWidth: 2 }
+                ]}
+                onPress={() => setSelectedRouteId(route.id)}
+              >
                 <View style={styles.routeHeader}>
                   <View>
-                    <Text style={isWarning ? styles.routeTimeWarning : styles.routeTime}>{route.durationMin} phút</Text>
-                    <Text style={styles.routeDistance}>{route.distanceKm} km • {route.summary}</Text>
+                    <Text style={[isWarning ? styles.routeTimeWarning : styles.routeTime, !isWarning && { color: colors.primary }]}>{route.durationMin} phút</Text>
+                    <Text style={[styles.routeDistance, { color: colors.textMuted }]}>{route.distanceKm} km • {route.summary}</Text>
                   </View>
                   <View style={isWarning ? styles.statusChipRed : styles.statusChipGreen}>
-                    <Icon name={isWarning ? (route.warnings.length > 0 ? "rainy" : "traffic") : "traffic"} color={isWarning ? "#ffb4ab" : "#10b981"} size={12} />
-                    <Text style={isWarning ? styles.statusChipRedText : styles.statusChipGreenText}>{shortStatus}</Text>
+                    <Icon name={isWarning ? (route.warnings.length > 0 ? "rainy" : "traffic") : "traffic"} color={isWarning ? colors.danger : colors.primary} size={12} />
+                    <Text style={[isWarning ? styles.statusChipRedText : styles.statusChipGreenText, isWarning ? { color: colors.danger } : { color: colors.primary }]}>{shortStatus}</Text>
                   </View>
                 </View>
-                <View style={styles.routeDetails}>
-                  <Text style={isWarning ? styles.routeDescWarning : styles.routeDesc}>{mainWarning}</Text>
+                <View style={[styles.routeDetails, { borderTopColor: colors.border }]}>
+                  <Text style={[isWarning ? styles.routeDescWarning : styles.routeDesc, !isWarning && { color: colors.text }]}>{mainWarning}</Text>
                 </View>
               </Pressable>
             </Animated.View>
@@ -255,29 +390,40 @@ export default function RouteScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#051424',
     paddingHorizontal: 16,
+  },
+  header: {
+    marginBottom: 16,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#d4e4fa',
-    marginBottom: 20,
     letterSpacing: -0.6,
   },
-  inputCard: {
-    backgroundColor: 'rgba(25, 30, 40, 0.75)',
+  topHalf: {
+    height: 360,
+    borderRadius: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: 20,
+    borderWidth: 1,
+  },
+  bottomHalf: {
+    flex: 1,
+  },
+  inputOverlay: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    marginBottom: 24,
-    position: 'relative',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 16,
-    elevation: 6,
+    elevation: 8,
   },
   inputRow: {
     flexDirection: 'row',
@@ -300,13 +446,14 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#d4e4fa',
     fontSize: 15,
     padding: 0,
+    ...Platform.select({
+      web: { outlineStyle: 'none' as any },
+    }),
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginLeft: 22,
     marginVertical: 4,
     marginRight: 40,
@@ -318,18 +465,16 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(25, 30, 40, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
+    elevation: 4,
   },
   searchButton: {
-    backgroundColor: '#00f2ea',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -351,22 +496,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: { flex: 1, color: '#fca5a5', fontSize: 13 },
-  content: {
-    flex: 1,
-  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#b9cac8',
     marginBottom: 14,
     letterSpacing: 0.2,
   },
   routeCard: {
-    backgroundColor: 'rgba(25, 30, 40, 0.55)',
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     marginBottom: 14,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
@@ -383,7 +522,6 @@ const styles = StyleSheet.create({
   routeTime: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#00f2ea',
   },
   routeTimeWarning: {
     fontSize: 22,
@@ -392,15 +530,12 @@ const styles = StyleSheet.create({
   },
   routeDistance: {
     fontSize: 13,
-    color: '#b9cac8',
     marginTop: 4,
   },
   statusChipGreen: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.25)',
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -409,14 +544,11 @@ const styles = StyleSheet.create({
   statusChipGreenText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#10b981',
   },
   statusChipRed: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: 'rgba(255, 180, 171, 0.25)',
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -425,24 +557,18 @@ const styles = StyleSheet.create({
   statusChipRedText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#ffb4ab',
   },
   routeDetails: {
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
   routeDesc: {
     fontSize: 14,
-    color: '#d4e4fa',
     lineHeight: 22,
   },
   routeDescWarning: {
     fontSize: 14,
     color: '#ffb4ab',
     lineHeight: 22,
-  },
-  routeCardWarning: {
-    borderColor: 'rgba(255, 180, 171, 0.25)',
   },
 });
