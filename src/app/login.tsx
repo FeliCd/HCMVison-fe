@@ -8,8 +8,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -18,11 +19,13 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import { useAuth } from '@/hooks/useAuth';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
+  const { login, isLoading, error, clearError } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,9 +35,15 @@ export default function LoginScreen() {
     transform: [{ scale: btnScale.value }],
   }));
 
-  const handleLogin = () => {
-    // Navigate to the main app (map) after "login"
-    router.replace('/(tabs)/explore');
+  const handleLogin = async () => {
+    if (!username.trim() || !password.trim()) return;
+    clearError();
+    try {
+      await login(username.trim(), password);
+      // useAuth.login() tự redirect sang /(tabs)/explore sau khi thành công
+    } catch {
+      // error đã được set trong useAuth
+    }
   };
 
   return (
@@ -42,13 +51,13 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={[
-          styles.scrollContainer, 
+          styles.scrollContainer,
           { paddingTop: Math.max(insets.top, 40), paddingBottom: Math.max(insets.bottom, 40) }
         ]}
       >
-        
+
         {/* Brand Header */}
         <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.header}>
           <View style={styles.logoContainer}>
@@ -63,6 +72,15 @@ export default function LoginScreen() {
         {/* Login Card */}
         <Animated.View entering={FadeInUp.duration(700).delay(300)} style={styles.card}>
           <View style={styles.form}>
+
+            {/* Error Banner */}
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Icon name="warning" color="#fca5a5" size={16} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
             {/* Username Field */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Username</Text>
@@ -75,8 +93,10 @@ export default function LoginScreen() {
                   placeholder="Nhập tên đăng nhập"
                   placeholderTextColor="#b9cac8"
                   value={username}
-                  onChangeText={setUsername}
+                  onChangeText={(t) => { setUsername(t); clearError(); }}
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
                 />
               </View>
             </View>
@@ -100,8 +120,9 @@ export default function LoginScreen() {
                   placeholder="Nhập mật khẩu"
                   placeholderTextColor="#b9cac8"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(t) => { setPassword(t); clearError(); }}
                   secureTextEntry={!showPassword}
+                  editable={!isLoading}
                 />
                 <Pressable
                   style={styles.passwordToggle}
@@ -118,12 +139,17 @@ export default function LoginScreen() {
 
             {/* Primary CTA */}
             <AnimatedPressable
-              style={[styles.loginButton, btnStyle]}
-              onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
+              style={[styles.loginButton, btnStyle, isLoading && styles.loginButtonDisabled]}
+              onPressIn={() => { if (!isLoading) btnScale.value = withSpring(0.95, { damping: 12 }); }}
               onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
               onPress={handleLogin}
+              disabled={isLoading}
             >
-              <Text style={styles.loginButtonText}>Đăng nhập</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#003735" size="small" />
+              ) : (
+                <Text style={styles.loginButtonText}>Đăng nhập</Text>
+              )}
             </AnimatedPressable>
           </View>
 
@@ -225,6 +251,22 @@ const styles = StyleSheet.create({
   form: {
     gap: 18,
   },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 10,
+    padding: 12,
+  },
+  errorText: {
+    flex: 1,
+    color: '#fca5a5',
+    fontSize: 13,
+    lineHeight: 18,
+  },
   inputGroup: {
     gap: 8,
   },
@@ -281,6 +323,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 8,
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
   },
   loginButtonText: {
     color: '#003735',

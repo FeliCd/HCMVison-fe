@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -22,81 +22,41 @@ import Animated, {
 import { WebView } from 'react-native-webview';
 
 import { Icon } from '@/components/icons';
+import { useWeather } from '@/hooks/useWeather';
+import { RainingCamera } from '@/types/api';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-const locations = [
-  {
-    id: '1',
-    name: 'Chợ Bến Thành',
-    address: 'Quận 1, TP. Hồ Chí Minh',
-    lat: 10.7769,
-    lng: 106.7009,
-    status: 'Mưa lớn - Kẹt xe',
-    type: 'combine',
-    markerColor: '#ffb4ab'
-  },
-  {
-    id: '2',
-    name: 'Đại học Khoa học Tự nhiên',
-    address: '227 Nguyễn Văn Cừ, Quận 5',
-    lat: 10.7626,
-    lng: 106.6822,
-    status: 'Đường thoáng - Bình thường',
-    type: 'traffic',
-    markerColor: '#6ffbbe'
-  },
-  {
-    id: '3',
-    name: 'Landmark 81',
-    address: 'Vinhomes Central Park, Bình Thạnh',
-    lat: 10.7966,
-    lng: 106.7224,
-    status: 'Mưa nhỏ - Giao thông ổn định',
-    type: 'rain',
-    markerColor: '#adc6ff'
-  },
-  {
-    id: '4',
-    name: 'Ngã tư Hàng Xanh',
-    address: 'Bình Thạnh, TP. Hồ Chí Minh',
-    lat: 10.8016,
-    lng: 106.7118,
-    status: 'Kẹt xe nghiêm trọng',
-    type: 'traffic',
-    markerColor: '#ffb4ab'
-  },
-  {
-    id: '5',
-    name: 'Cầu Sài Gòn',
-    address: 'Bình Thạnh - Quận 2',
-    lat: 10.7997,
-    lng: 106.7185,
-    status: 'Mưa vừa - Đường thông thoáng',
-    type: 'rain',
-    markerColor: '#adc6ff'
-  },
-  {
-    id: '6',
-    name: 'Phố đi bộ Nguyễn Huệ',
-    address: 'Quận 1, TP. Hồ Chí Minh',
-    lat: 10.7741,
-    lng: 106.7038,
-    status: 'Mưa rào nhẹ',
-    type: 'rain',
-    markerColor: '#adc6ff'
-  },
-  {
-    id: '7',
-    name: 'Ngã sáu Phù Đổng',
-    address: 'Quận 1, TP. Hồ Chí Minh',
-    lat: 10.7719,
-    lng: 106.6917,
-    status: 'Ùn tắc cục bộ',
-    type: 'traffic',
-    markerColor: '#ffb4ab'
-  }
-];
+// Cấu trúc location cho map
+type MapLocation = {
+  id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  status: string;
+  type: 'rain' | 'traffic' | 'combine';
+  markerColor: string;
+};
+
+// Convert RainingCamera → MapLocation
+function toMapLocation(cam: RainingCamera): MapLocation {
+  const isJam = cam.trafficLevel === 'jam' || cam.trafficLevel === 'slow';
+  const type: MapLocation['type'] = cam.isRaining && isJam ? 'combine' : cam.isRaining ? 'rain' : 'traffic';
+  const markerColor = type === 'combine' || type === 'rain' ? '#ffb4ab' : '#f59e0b';
+  return {
+    id: cam.cameraId,
+    name: cam.cameraName,
+    address: cam.cameraId,
+    lat: cam.latitude,
+    lng: cam.longitude,
+    status: `${cam.isRaining ? `Mưa ${cam.rainLevel}` : 'Không mưa'} - ${cam.trafficLevel}`,
+    type,
+    markerColor,
+  };
+}
+
+
 
 const mapHtml = `
 <!DOCTYPE html>
@@ -175,10 +135,24 @@ export default function TabTwoScreen() {
   const { width } = useWindowDimensions();
   const [activeSegment, setActiveSegment] = useState<'rain' | 'traffic' | 'combine'>('rain');
   const [searchText, setSearchText] = useState('');
-  const [suggestions, setSuggestions] = useState<typeof locations>([]);
+  const [suggestions, setSuggestions] = useState<MapLocation[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
+  const [locations, setLocations] = useState<MapLocation[]>([]);
+
+  const { rainingCameras, getRainingCameras } = useWeather();
   const webViewRef = useRef<WebView>(null);
+
+  // Load raining cameras từ API
+  useEffect(() => {
+    getRainingCameras(60);
+  }, []);
+
+  // Khi có data mới từ API, convert sang MapLocation
+  useEffect(() => {
+    if (rainingCameras.length > 0) {
+      setLocations(rainingCameras.map(toMapLocation));
+    }
+  }, [rainingCameras]);
 
   const bottomBarHeight = 64 + insets.bottom;
   const fabsBottom = bottomBarHeight + 16;
@@ -226,7 +200,8 @@ export default function TabTwoScreen() {
     if (text.trim().length > 0) {
       const filtered = locations.filter(loc =>
         loc.name.toLowerCase().includes(text.toLowerCase()) ||
-        loc.address.toLowerCase().includes(text.toLowerCase())
+        loc.address.toLowerCase().includes(text.toLowerCase()) ||
+        loc.status.toLowerCase().includes(text.toLowerCase())
       );
       setSuggestions(filtered);
       setShowSuggestions(true);
@@ -236,7 +211,7 @@ export default function TabTwoScreen() {
     }
   };
 
-  const handleSelectSuggestion = (loc: typeof locations[0]) => {
+  const handleSelectSuggestion = (loc: MapLocation) => {
     setSearchText(loc.name);
     setShowSuggestions(false);
     Keyboard.dismiss();
@@ -334,16 +309,20 @@ export default function TabTwoScreen() {
           style={styles.chipsScrollView}
           contentContainerStyle={styles.chipsContainer}
         >
-          {/* Raining chip */}
+          {/* Raining chip từ API */}
           <View style={styles.statusChipRed}>
             <Icon name="rainy" color="#ffb4ab" size={14} />
-            <Text style={styles.statusChipRedText}>Đang mưa: 12 camera</Text>
+            <Text style={styles.statusChipRedText}>
+              Đang mưa: {locations.filter(l => l.type === 'rain' || l.type === 'combine').length} camera
+            </Text>
           </View>
 
-          {/* Jam chip */}
+          {/* Jam chip từ API */}
           <View style={styles.statusChipRed}>
             <Icon name="traffic" color="#ffb4ab" size={14} />
-            <Text style={styles.statusChipRedText}>Kẹt xe/chậm: 8 điểm</Text>
+            <Text style={styles.statusChipRedText}>
+              Kẹt xe/chậm: {locations.filter(l => l.type === 'traffic' || l.type === 'combine').length} điểm
+            </Text>
           </View>
         </ScrollView>
 
