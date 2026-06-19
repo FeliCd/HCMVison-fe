@@ -1,31 +1,32 @@
-import * as Location from 'expo-location';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
-  Keyboard,
-  Platform,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
+  Pressable,
+  ScrollView,
+  Platform,
+  useWindowDimensions,
+  Keyboard,
 } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSpring,
+  Easing,
+} from 'react-native-reanimated';
 import { WebView } from 'react-native-webview';
+import * as Location from 'expo-location';
+import { router } from 'expo-router';
 
-import { Icon } from '@/components/icons';
+import { Icon, IconName } from '@/components/icons';
+import { useWeather } from '@/hooks/useWeather';
 import { useCamera } from '@/hooks/useCamera';
 import { useTheme } from '@/hooks/useTheme';
-import { useWeather } from '@/hooks/useWeather';
 import { WeatherLog } from '@/types/api';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -156,7 +157,7 @@ const mapHtml = (isDark: boolean) => `
 </html>
 `;
 
-export default function TabTwoScreen() {
+export default function AdminMapScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [activeSegment, setActiveSegment] = useState<'rain' | 'traffic' | 'combine'>('rain');
@@ -238,7 +239,7 @@ export default function TabTwoScreen() {
       return loc.type === activeSegment || loc.type === 'combine';
     });
     const locsString = JSON.stringify(filtered).replace(/'/g, "\\\\'");
-
+    
     if (Platform.OS === 'web') {
       iframeRef.current?.contentWindow?.postMessage({ type: 'SYNC_MARKERS', data: locsString }, '*');
     } else {
@@ -275,7 +276,7 @@ export default function TabTwoScreen() {
     setSearchText(loc.name);
     setShowSuggestions(false);
     Keyboard.dismiss();
-
+    
     if (Platform.OS === 'web') {
       iframeRef.current?.contentWindow?.postMessage({ type: 'FOCUS_LOCATION', id: loc.id, lat: loc.lat, lng: loc.lng, zoom: 15 }, '*');
     } else {
@@ -332,6 +333,12 @@ export default function TabTwoScreen() {
       )}
 
       <View style={[styles.topUiContainer, { paddingTop: Math.max(insets.top, 16) }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <Pressable onPress={() => router.back()} style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 20, elevation: 4, marginRight: 12 }}>
+            <Icon name="arrow_back" color={colors.text} size={24} />
+          </Pressable>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>Bản đồ Camera Admin</Text>
+        </View>
         <View style={styles.searchContainer}>
           <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Icon name="search" color={colors.textMuted} size={20} />
@@ -456,7 +463,24 @@ export default function TabTwoScreen() {
           <Text style={[styles.infoPanelSubtitle, { color: colors.textMuted }]}>Nguồn: Cổng TTGT TP.HCM</Text>
         </View>
       </View>
+
+      {/* Custom Bottom Tab Bar */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <BottomTabItem icon="grid_view" label="Dashboard" onPress={() => router.push('/admin' as any)} />
+        <BottomTabItem icon="map" label="Map" isActive />
+        <BottomTabItem icon="videocam" label="Cameras" onPress={() => router.push('/admin/manage-cameras' as any)} />
+        <BottomTabItem icon="bar_chart" label="Reports" onPress={() => router.push('/admin/dashboard' as any)} />
+      </View>
     </View>
+  );
+}
+
+function BottomTabItem({ icon, label, isActive = false, onPress }: { icon: IconName, label: string, isActive?: boolean, onPress?: () => void }) {
+  return (
+    <Pressable style={[styles.bottomTabItem, isActive && styles.bottomTabItemActive]} onPress={onPress}>
+      <Icon name={icon} color={isActive ? "#34d399" : "#64748b"} size={22} />
+      <Text style={[styles.bottomTabLabel, isActive && styles.bottomTabLabelActive]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -646,4 +670,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
   },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', backgroundColor: '#0f172a', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 12 },
+  bottomTabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 8, marginHorizontal: 4 },
+  bottomTabItemActive: { backgroundColor: 'rgba(52, 211, 153, 0.1)' },
+  bottomTabLabel: { fontSize: 10, color: '#64748b', fontWeight: '600' },
+  bottomTabLabelActive: { color: '#34d399', fontWeight: '700' },
 });

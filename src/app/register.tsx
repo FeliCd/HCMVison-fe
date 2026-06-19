@@ -1,36 +1,37 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
-import { Link, router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  FadeInUp,
-} from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
+import { Link, router } from 'expo-router';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import Animated, {
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
-  const { error, isLoading, register } = useAuth();
-  const [formError, setFormError] = useState<string | null>(null);
+  const { register, isLoading, error, clearError } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [localError, setLocalError] = useState('');
 
   const btnScale = useSharedValue(1);
   const btnStyle = useAnimatedStyle(() => ({
@@ -38,16 +39,27 @@ export default function RegisterScreen() {
   }));
 
   const handleRegister = async () => {
-    setFormError(null);
+    setLocalError('');
+    clearError();
+
+    if (!username.trim()) {
+      setLocalError('Vui lòng nhập tên đăng nhập');
+      return;
+    }
+    if (!password.trim()) {
+      setLocalError('Vui lòng nhập mật khẩu');
+      return;
+    }
     if (password !== confirmPassword) {
-      setFormError('Mật khẩu xác nhận không khớp.');
+      setLocalError('Mật khẩu xác nhận không khớp');
       return;
     }
 
     try {
       await register(username.trim(), email.trim(), password);
+      // useAuth.register() tự auto-login và redirect sang /(tabs)/explore
     } catch {
-      // AuthProvider already exposes the user-facing error.
+      // error đã được set trong useAuth
     }
   };
 
@@ -162,17 +174,28 @@ export default function RegisterScreen() {
               </View>
             </View>
 
+            {/* Error Banner */}
+            {(error || localError) ? (
+              <View style={styles.errorBanner}>
+                <Icon name="warning" color="#fca5a5" size={16} />
+                <Text style={styles.errorText}>{localError || error}</Text>
+              </View>
+            ) : null}
+
             {/* Primary CTA */}
             <AnimatedPressable
-              style={[styles.registerButton, btnStyle]}
-              onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
+              style={[styles.registerButton, btnStyle, isLoading && styles.registerButtonDisabled]}
+              onPressIn={() => { if (!isLoading) btnScale.value = withSpring(0.95, { damping: 12 }); }}
               onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
               disabled={isLoading}
               onPress={handleRegister}
             >
-              <Text style={styles.registerButtonText}>{isLoading ? 'Đang đăng ký...' : 'Đăng ký ngay'}</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#003735" size="small" />
+              ) : (
+                <Text style={styles.registerButtonText}>Đăng ký ngay</Text>
+              )}
             </AnimatedPressable>
-            {formError || error ? <Text style={styles.errorText}>{formError || error}</Text> : null}
           </View>
 
           {/* Secondary Actions */}
@@ -295,6 +318,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     shadowColor: '#000000',
+  },
+  registerButtonDisabled: {
+    opacity: 0.7,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 10,
+    padding: 12,
+  },
+  errorText: {
+    flex: 1,
+    color: '#fca5a5',
+    fontSize: 13,
+    lineHeight: 18,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 16,
@@ -304,12 +346,6 @@ const styles = StyleSheet.create({
     color: '#003735',
     fontSize: 15,
     fontWeight: '700',
-  },
-  errorText: {
-    color: '#ffb4ab',
-    fontSize: 13,
-    lineHeight: 18,
-    textAlign: 'center',
   },
   secondaryActions: {
     marginTop: 24,

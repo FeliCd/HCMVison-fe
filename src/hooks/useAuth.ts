@@ -1,13 +1,8 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { apiClient } from '@/services/api';
+import { User } from '@/types/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { apiClient } from '@/services/api';
-import {
-  addAuthenticatedAppStateSyncListener,
-  revokeCurrentDeviceTokenAsync,
-  syncDeviceTokenAsync,
-} from '@/services/NotificationManager';
-import { User } from '@/types/api';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +13,7 @@ interface AuthContextType {
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  loadUser: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,9 +39,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const token = await AsyncStorage.getItem('authToken');
         if (storedUser && token) {
           setUser(JSON.parse(storedUser));
-          void syncDeviceTokenAsync({ requestPermission: false }).catch((syncError) => {
-            console.warn('Failed to sync FCM token after session restore.', syncError);
-          });
         }
       } catch {
         // ignore
@@ -61,11 +54,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       router.replace('/login');
     });
-
-    const appStateSubscription = addAuthenticatedAppStateSyncListener();
-    return () => {
-      appStateSubscription.remove();
-    };
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
@@ -82,10 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      void syncDeviceTokenAsync({ requestPermission: true }).catch((syncError) => {
-        console.warn('Failed to sync FCM token after login.', syncError);
-      });
-      router.replace('/(tabs)/explore');
+      
+      if (userData.role === 'Admin') {
+        router.replace('/admin');
+      } else {
+        router.replace('/(tabs)/explore');
+      }
     } catch (err: any) {
       // Backend may return plain text string or JSON with message/title
       const responseData = err.response?.data;
@@ -138,20 +128,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [login]);
 
   const logout = useCallback(async () => {
-    try {
-      // Only logout revokes the device token. Closing/killing the app must keep push enabled.
-      await revokeCurrentDeviceTokenAsync();
-    } catch (revokeError) {
-      console.warn('Failed to revoke FCM token during logout.', revokeError);
-    } finally {
-      await apiClient.clearToken();
-      await AsyncStorage.removeItem('user');
-      setUser(null);
-      router.replace('/login');
-    }
+    await apiClient.clearToken();
+    await AsyncStorage.removeItem('user');
+    setUser(null);
+    router.replace('/login');
   }, []);
 
   const clearError = useCallback(() => setError(null), []);
+
+  const loadUser = useCallback(async () => {
+    try {
+      const profileResponse = await apiClient.getProfile();
+      const userData = profileResponse.data as User;
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+    } catch (err) {
+      console.warn('Failed to load user profile', err);
+    }
+  }, []);
 
   return React.createElement(
     AuthContext.Provider,
@@ -165,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         clearError,
+        loadUser,
       },
     },
     children

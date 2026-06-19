@@ -1,92 +1,120 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import { useWeather } from '@/hooks/useWeather';
+import { router } from 'expo-router';
 
 export default function StatusScreen() {
   const insets = useSafeAreaInsets();
+  const { rainingCameras, logs, loading, error, getRainingCameras, getWeatherLogs } = useWeather();
+
+  useEffect(() => {
+    getRainingCameras(30);
+    getWeatherLogs(60, 20);
+  }, []);
+
+  // Đếm điểm kẹt xe từ weather logs
+  const congestedCount = logs.filter(
+    (l) => l.trafficLevel === 'jam' || l.trafficLevel === 'slow'
+  ).length;
+
+  const rainingCount = rainingCameras.length;
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
-      <Animated.Text entering={FadeInUp.duration(500)} style={styles.headerTitle}>Tình trạng hiện tại</Animated.Text>
+      <Animated.Text entering={FadeInUp.duration(500)} style={styles.headerTitle}>
+        Tình trạng hiện tại
+      </Animated.Text>
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 100 }}>
-        
+
         {/* Stat Cards Row */}
         <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.statsRow}>
           <View style={styles.statCard}>
             <View style={styles.statIconContainer}>
               <Icon name="rainy" color="#00f2ea" size={20} />
             </View>
-            <Text style={styles.statValue}>12</Text>
+            {loading ? (
+              <ActivityIndicator color="#00f2ea" />
+            ) : (
+              <Text style={styles.statValue}>{rainingCount}</Text>
+            )}
             <Text style={styles.statLabel}>Điểm ngập/mưa lớn</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIconContainer, { backgroundColor: 'rgba(255, 180, 171, 0.1)' }]}>
               <Icon name="traffic" color="#ffb4ab" size={20} />
             </View>
-            <Text style={styles.statValueWarning}>8</Text>
+            {loading ? (
+              <ActivityIndicator color="#ffb4ab" />
+            ) : (
+              <Text style={styles.statValueWarning}>{congestedCount}</Text>
+            )}
             <Text style={styles.statLabel}>Điểm kẹt xe</Text>
           </View>
         </Animated.View>
 
-        <Animated.Text entering={FadeInUp.duration(500).delay(200)} style={styles.sectionTitle}>Camera đang theo dõi</Animated.Text>
+        <Animated.Text entering={FadeInUp.duration(500).delay(200)} style={styles.sectionTitle}>
+          Camera đang theo dõi
+        </Animated.Text>
 
-        {/* Camera Card 1 */}
-        <Animated.View entering={FadeInUp.duration(600).delay(300)}>
-          <Pressable style={styles.cameraCard}>
-            <View style={styles.cameraImageContainer}>
-              <Image 
-                source="https://lh3.googleusercontent.com/aida-public/AB6AXuCsTtxj8qIjQMWl24Whd7WSvQs7RCXJqmi5N5XSjvmazXbnB7IwSZAfYliMapnn80YnD1UWeaIFWgGcD1XG0Zo1KcyqinVSvDMwUxWvxbhRZ4mTXZ68SBER6N7nJf-nHmW1HzgG_TVUPHqLiXppNA39BdxoSGUWvsP0OH0PmuYGiuntlOqKQjURn307m6JZq4uAINCdUKoKxAXHo3U-OOmKibi-BwHp7KOYZxMs9vabq34PstUX2OZiSsJzfeo7TPpQXG34ifjqfpHw" 
-                style={styles.cameraImage} 
-                contentFit="cover" 
-              />
-              <View style={styles.imageGradientOverlay} />
-              <View style={styles.cameraOverlay}>
-                <View style={styles.badge}>
-                  <Icon name="videocam" color="#00f2ea" size={12} />
-                  <Text style={styles.badgeText}>Dữ liệu mới</Text>
+        {error ? (
+          <View style={styles.errorBox}>
+            <Icon name="warning" color="#fca5a5" size={20} />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : loading && rainingCameras.length === 0 ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#00f2ea" />
+            <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+          </View>
+        ) : rainingCameras.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Icon name="check_circle" color="#22c55e" size={40} />
+            <Text style={styles.emptyText}>Không có camera mưa nào trong 30 phút qua</Text>
+          </View>
+        ) : (
+          rainingCameras.map((cam, idx) => (
+            <Animated.View key={cam.cameraId} entering={FadeInUp.duration(600).delay(300 + idx * 100)}>
+              <Pressable
+                style={styles.cameraCard}
+                onPress={() => router.push({ pathname: '/camera-detail', params: { id: cam.cameraId, name: cam.cameraName } })}
+              >
+                <View style={styles.cameraImageContainer}>
+                  {cam.imageUrl ? (
+                    <Image source={cam.imageUrl} style={styles.cameraImage} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.cameraImage, styles.noImagePlaceholder]}>
+                      <Icon name="videocam" color="#334155" size={36} />
+                    </View>
+                  )}
+                  <View style={styles.imageGradientOverlay} />
+                  <View style={styles.cameraOverlay}>
+                    <View style={styles.badge}>
+                      <Icon name="rainy" color="#ffb4ab" size={12} />
+                      <Text style={styles.badgeText}>Đang mưa</Text>
+                    </View>
+                  </View>
                 </View>
-              </View>
-            </View>
-            <View style={styles.cameraInfo}>
-              <Text style={styles.cameraTitle}>Ngã 4 Hàng Xanh</Text>
-              <View style={styles.cameraStatusRow}>
-                <View style={styles.statusChipRed}>
-                  <Icon name="traffic" color="#ffb4ab" size={12} />
-                  <Text style={styles.statusChipRedText}>Kẹt xe</Text>
+                <View style={styles.cameraInfo}>
+                  <Text style={styles.cameraTitle}>{cam.cameraName}</Text>
+                  <View style={styles.cameraStatusRow}>
+                    <View style={styles.statusChipRed}>
+                      <Icon name="rainy" color="#ffb4ab" size={12} />
+                      <Text style={styles.statusChipRedText}>
+                        {cam.rainLevel || 'Mưa'} • {cam.trafficLevel || ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.timeText}>{cam.imageExpiresAtUtc ? 'Ảnh mới nhất' : 'Live'}</Text>
+                  </View>
                 </View>
-                <Text style={styles.timeText}>Cập nhật 2 phút trước</Text>
-              </View>
-            </View>
-          </Pressable>
-        </Animated.View>
-
-        {/* Camera Card 2 */}
-        <Animated.View entering={FadeInUp.duration(600).delay(450)}>
-          <Pressable style={styles.cameraCard}>
-            <View style={styles.cameraImageContainer}>
-              <Image 
-                source="https://lh3.googleusercontent.com/aida-public/AB6AXuCsTtxj8qIjQMWl24Whd7WSvQs7RCXJqmi5N5XSjvmazXbnB7IwSZAfYliMapnn80YnD1UWeaIFWgGcD1XG0Zo1KcyqinVSvDMwUxWvxbhRZ4mTXZ68SBER6N7nJf-nHmW1HzgG_TVUPHqLiXppNA39BdxoSGUWvsP0OH0PmuYGiuntlOqKQjURn307m6JZq4uAINCdUKoKxAXHo3U-OOmKibi-BwHp7KOYZxMs9vabq34PstUX2OZiSsJzfeo7TPpQXG34ifjqfpHw" 
-                style={styles.cameraImage} 
-                contentFit="cover" 
-              />
-              <View style={styles.imageGradientOverlay} />
-            </View>
-            <View style={styles.cameraInfo}>
-              <Text style={styles.cameraTitle}>Vòng xoay Lăng Cha Cả</Text>
-              <View style={styles.cameraStatusRow}>
-                <View style={styles.statusChipAmber}>
-                  <Icon name="rainy" color="#f59e0b" size={12} />
-                  <Text style={styles.statusChipAmberText}>Mưa vừa</Text>
-                </View>
-                <Text style={styles.timeText}>Cập nhật 5 phút trước</Text>
-              </View>
-            </View>
-          </Pressable>
-        </Animated.View>
+              </Pressable>
+            </Animated.View>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -122,16 +150,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  statValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#00f2ea',
-  },
-  statValueWarning: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#ffb4ab',
-  },
+  statValue: { fontSize: 32, fontWeight: '800', color: '#00f2ea' },
+  statValueWarning: { fontSize: 32, fontWeight: '800', color: '#ffb4ab' },
   statLabel: { fontSize: 13, color: '#b9cac8', textAlign: 'center', fontWeight: '500' },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#d4e4fa', marginBottom: 16, letterSpacing: 0.2 },
   cameraCard: {
@@ -149,12 +169,9 @@ const styles = StyleSheet.create({
   },
   cameraImageContainer: { position: 'relative' },
   cameraImage: { width: '100%', height: 170, backgroundColor: '#122131' },
+  noImagePlaceholder: { justifyContent: 'center', alignItems: 'center' },
   imageGradientOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 60,
     backgroundColor: 'rgba(25, 30, 40, 0.6)',
   },
   cameraOverlay: { position: 'absolute', top: 12, left: 12 },
@@ -169,13 +186,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
   },
-  badgeText: { color: '#00f2ea', fontSize: 11, fontWeight: '700' },
+  badgeText: { color: '#ffb4ab', fontSize: 11, fontWeight: '700' },
   cameraInfo: { padding: 16 },
   cameraTitle: { fontSize: 16, fontWeight: '700', color: '#d4e4fa', marginBottom: 8 },
   cameraStatusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   timeText: { fontSize: 12, color: '#b9cac8' },
   statusChipRed: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(255, 180, 171, 0.2)', borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   statusChipRedText: { fontSize: 11, fontWeight: '700', color: '#ffb4ab' },
-  statusChipAmber: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.2)', borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  statusChipAmberText: { fontSize: 11, fontWeight: '700', color: '#f59e0b' },
+  loadingBox: { paddingTop: 40, alignItems: 'center', gap: 12 },
+  loadingText: { color: '#64748b', fontSize: 14 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(239,68,68,0.08)', padding: 16, borderRadius: 12, marginTop: 8 },
+  errorText: { flex: 1, color: '#fca5a5', fontSize: 13 },
+  emptyBox: { paddingTop: 40, alignItems: 'center', gap: 12 },
+  emptyText: { color: '#64748b', fontSize: 14, textAlign: 'center' },
 });

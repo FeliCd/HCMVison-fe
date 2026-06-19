@@ -1,32 +1,20 @@
-import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
-import { useEffect } from 'react';
+import { DarkTheme, DefaultTheme, ThemeProvider as ExpoThemeProvider, Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider } from '@/hooks/useAuth';
-import {
-  addNotificationTapListener,
-  addPushTokenRefreshListener,
-} from '@/services/NotificationManager';
+import { ThemeProvider } from '@/hooks/useTheme';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
-  useEffect(() => {
-    const tapSubscription = addNotificationTapListener();
-    const tokenSubscription = addPushTokenRefreshListener();
-
-    return () => {
-      tapSubscription.remove();
-      tokenSubscription.remove();
-    };
-  }, []);
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider>
       <AuthProvider>
-        <AnimatedSplashOverlay />
-        <Stack screenOptions={{ headerShown: false }} />
+        <ExpoThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <AnimatedSplashOverlay />
+          <Stack screenOptions={{ headerShown: false }} />
+        </ExpoThemeProvider>
       </AuthProvider>
     </ThemeProvider>
   );
