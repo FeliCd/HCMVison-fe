@@ -70,7 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      router.replace('/(tabs)/explore');
+      
+      if (userData.role === 'Admin') {
+        router.replace('/admin');
+      } else {
+        router.replace('/(tabs)/explore');
+      }
     } catch (err: any) {
       // Backend may return plain text string or JSON with message/title
       const responseData = err.response?.data;

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon } from '@/components/icons';
+import { Icon, IconName } from '@/components/icons';
 import apiClient from '@/services/api';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -122,8 +122,26 @@ export default function AdminDashboardScreen() {
             </Animated.View>
           </>
         )}
+        <View style={{ height: 80 }} />
       </ScrollView>
+
+      {/* Custom Bottom Tab Bar */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <BottomTabItem icon="grid_view" label="Dashboard" onPress={() => router.push('/admin' as any)} />
+        <BottomTabItem icon="map" label="Map" onPress={() => router.push('/admin/map' as any)} />
+        <BottomTabItem icon="videocam" label="Cameras" onPress={() => router.push('/admin/manage-cameras' as any)} />
+        <BottomTabItem icon="bar_chart" label="Reports" isActive />
+      </View>
     </View>
+  );
+}
+
+function BottomTabItem({ icon, label, isActive = false, onPress }: { icon: IconName, label: string, isActive?: boolean, onPress?: () => void }) {
+  return (
+    <Pressable style={[styles.bottomTabItem, isActive && styles.bottomTabItemActive]} onPress={onPress}>
+      <Icon name={icon} color={isActive ? "#34d399" : "#64748b"} size={22} />
+      <Text style={[styles.bottomTabLabel, isActive && styles.bottomTabLabelActive]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -143,4 +161,9 @@ const styles = StyleSheet.create({
   menuText: { color: '#d4e4fa', fontWeight: '500', fontSize: 14, textAlign: 'center' },
   loadingBox: { paddingTop: 60, alignItems: 'center', gap: 12 },
   loadingText: { color: '#64748b', fontSize: 14 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', backgroundColor: '#0f172a', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 12 },
+  bottomTabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 8, marginHorizontal: 4 },
+  bottomTabItemActive: { backgroundColor: 'rgba(52, 211, 153, 0.1)' },
+  bottomTabLabel: { fontSize: 10, color: '#64748b', fontWeight: '600' },
+  bottomTabLabelActive: { color: '#34d399', fontWeight: '700' },
 });
