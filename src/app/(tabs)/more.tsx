@@ -1,12 +1,29 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon, IconName } from '@/components/icons';
+import React, { useState } from 'react';
 import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Icon, IconName } from '@/components/icons';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -15,8 +32,6 @@ export default function MoreScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        
-        {/* Profile Section */}
         <Animated.View entering={FadeInUp.duration(500)} style={styles.profileSection}>
           <View style={styles.avatarContainer}>
             <Icon name="account_circle" size={60} color="#94a3b8" />
@@ -25,30 +40,29 @@ export default function MoreScreen() {
             </View>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Nguyễn Văn A</Text>
-            <Text style={styles.profileEmail}>nguyenvana@example.com</Text>
+            <Text style={styles.profileName}>
+              {user?.fullName || user?.username || 'HCMVision User'}
+            </Text>
+            <Text style={styles.profileEmail}>{user?.email || 'Chưa có email'}</Text>
           </View>
         </Animated.View>
 
-        {/* Menu Sections */}
         <Animated.View entering={FadeInUp.duration(500).delay(100)} style={styles.menuSection}>
           <Text style={styles.sectionTitle}>Tài khoản</Text>
           <MenuRow icon="person_outline" title="Chỉnh sửa thông tin" />
           <MenuRow icon="lock_outline" title="Đổi mật khẩu" />
-          <MenuRow icon="notifications_none" title="Cài đặt thông báo" />
-          
-          <Pressable 
-            style={styles.menuRow}
+          <MenuRow
+            icon="notifications_none"
+            title="Cài đặt thông báo"
+            onPress={() => router.push('/permission-notification')}
+          />
+
+          <MenuRow
+            icon="admin_panel_settings"
+            iconColor="#818cf8"
+            title="Quản trị viên (Admin)"
             onPress={() => router.push('/admin')}
-          >
-            <View style={styles.menuRowLeft}>
-              <View style={styles.iconContainer}>
-                <Icon name="admin_panel_settings" size={22} color="#818cf8" />
-              </View>
-              <Text style={styles.menuRowTitle}>Quản trị viên (Admin)</Text>
-            </View>
-            <Icon name="chevron_right" size={20} color="#94a3b8" />
-          </Pressable>
+          />
         </Animated.View>
 
         <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.menuSection}>
@@ -59,11 +73,16 @@ export default function MoreScreen() {
           <MenuRow icon="info_outline" title="Giới thiệu về HCMVision" value="v1.0.0" />
         </Animated.View>
 
-        {/* Logout Button */}
         <Animated.View entering={FadeInUp.duration(500).delay(300)}>
-          <Pressable style={styles.logoutButton}>
+          <Pressable
+            style={[styles.logoutButton, isLoggingOut && styles.disabledButton]}
+            disabled={isLoggingOut}
+            onPress={handleLogout}
+          >
             <Icon name="logout" size={20} color="#ef4444" />
-            <Text style={styles.logoutText}>Đăng xuất</Text>
+            <Text style={styles.logoutText}>
+              {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
+            </Text>
           </Pressable>
         </Animated.View>
 
@@ -73,18 +92,34 @@ export default function MoreScreen() {
   );
 }
 
-function MenuRow({ icon, title, value }: { icon: IconName; title: string; value?: string }) {
+function MenuRow({
+  icon,
+  title,
+  value,
+  iconColor = '#64748b',
+  onPress,
+}: {
+  icon: IconName;
+  title: string;
+  value?: string;
+  iconColor?: string;
+  onPress?: () => void;
+}) {
   return (
-    <Pressable style={styles.menuRow}>
+    <Pressable
+      style={[styles.menuRow, !onPress && styles.inactiveMenuRow]}
+      disabled={!onPress}
+      onPress={onPress}
+    >
       <View style={styles.menuRowLeft}>
         <View style={styles.iconContainer}>
-          <Icon name={icon} size={22} color="#64748b" />
+          <Icon name={icon} size={22} color={iconColor} />
         </View>
         <Text style={styles.menuRowTitle}>{title}</Text>
       </View>
       <View style={styles.menuRowRight}>
-        {value && <Text style={styles.menuRowValue}>{value}</Text>}
-        <Icon name="chevron_right" size={20} color="#94a3b8" />
+        {value ? <Text style={styles.menuRowValue}>{value}</Text> : null}
+        <Icon name="chevron_right" size={20} color={onPress ? '#94a3b8' : '#475569'} />
       </View>
     </Pressable>
   );
@@ -161,9 +196,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
   },
+  inactiveMenuRow: {
+    opacity: 0.75,
+  },
   menuRowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   menuRowRight: {
     flexDirection: 'row',
@@ -198,5 +237,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  disabledButton: {
+    opacity: 0.65,
   },
 });

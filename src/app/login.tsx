@@ -9,7 +9,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -18,11 +18,13 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import { useAuth } from '@/hooks/useAuth';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
+  const { error, isLoading, login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,9 +34,12 @@ export default function LoginScreen() {
     transform: [{ scale: btnScale.value }],
   }));
 
-  const handleLogin = () => {
-    // Navigate to the main app (map) after "login"
-    router.replace('/(tabs)/explore');
+  const handleLogin = async () => {
+    try {
+      await login(username.trim(), password);
+    } catch {
+      // AuthProvider already exposes the user-facing error.
+    }
   };
 
   return (
@@ -121,10 +126,12 @@ export default function LoginScreen() {
               style={[styles.loginButton, btnStyle]}
               onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
               onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
+              disabled={isLoading}
               onPress={handleLogin}
             >
-              <Text style={styles.loginButtonText}>Đăng nhập</Text>
+              <Text style={styles.loginButtonText}>{isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}</Text>
             </AnimatedPressable>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
 
           {/* Secondary Actions */}
@@ -286,6 +293,12 @@ const styles = StyleSheet.create({
     color: '#003735',
     fontSize: 15,
     fontWeight: '700',
+  },
+  errorText: {
+    color: '#ffb4ab',
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   secondaryActions: {
     marginTop: 24,

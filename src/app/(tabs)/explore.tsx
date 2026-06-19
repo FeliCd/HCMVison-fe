@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -164,10 +164,31 @@ const mapHtml = `
                 window.markerMap[id].openPopup();
             }
         };
+
+        window.centerMap = function(lat, lng, zoom) {
+            map.setView([lat, lng], zoom || 11);
+        };
     </script>
 </body>
 </html>
 `;
+
+type LocationItem = typeof locations[number];
+
+type LeafletFrameWindow = Window & {
+  setMarkers?: (locsJson: string) => void;
+  focusLocation?: (id: string, lat: number, lng: number, zoom?: number) => void;
+  centerMap?: (lat: number, lng: number, zoom?: number) => void;
+};
+
+const webMapFrameStyle: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  width: '100%',
+  height: '100%',
+  border: 0,
+  backgroundColor: '#051424',
+};
 
 // Main Map Landing Page Screen
 export default function TabTwoScreen() {
@@ -179,6 +200,8 @@ export default function TabTwoScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   
   const webViewRef = useRef<WebView>(null);
+  const webFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   const bottomBarHeight = 64 + insets.bottom;
   const fabsBottom = bottomBarHeight + 16;
@@ -203,23 +226,35 @@ export default function TabTwoScreen() {
     transform: [{ scale: locScale.value }],
   }));
 
-  const syncMarkers = () => {
+  const syncMarkers = useCallback(() => {
+    if (!mapReady) {
+      return;
+    }
+
     const filtered = locations.filter(loc => {
       if (activeSegment === 'combine') return true;
       return loc.type === activeSegment || loc.type === 'combine';
     });
-    const locsString = JSON.stringify(filtered).replace(/'/g, "\\'");
+
+    const locsJson = JSON.stringify(filtered);
+
+    if (Platform.OS === 'web') {
+      const frameWindow = webFrameRef.current?.contentWindow as LeafletFrameWindow | null;
+      frameWindow?.setMarkers?.(locsJson);
+      return;
+    }
+
     webViewRef.current?.injectJavaScript(`
       if (window.setMarkers) {
-        window.setMarkers('${locsString}');
+        window.setMarkers(${JSON.stringify(locsJson)});
       }
       true;
     `);
-  };
+  }, [activeSegment, mapReady]);
 
   useEffect(() => {
     syncMarkers();
-  }, [activeSegment]);
+  }, [syncMarkers]);
 
   const handleSearchChange = (text: string) => {
     setSearchText(text);
@@ -236,38 +271,65 @@ export default function TabTwoScreen() {
     }
   };
 
-  const handleSelectSuggestion = (loc: typeof locations[0]) => {
+  const handleSelectSuggestion = (loc: LocationItem) => {
     setSearchText(loc.name);
     setShowSuggestions(false);
     Keyboard.dismiss();
     
-    // Focus map and open popup
+    if (Platform.OS === 'web') {
+      const frameWindow = webFrameRef.current?.contentWindow as LeafletFrameWindow | null;
+      frameWindow?.focusLocation?.(loc.id, loc.lat, loc.lng, 15);
+      return;
+    }
+
     webViewRef.current?.injectJavaScript(`
       if (window.focusLocation) {
-        window.focusLocation('${loc.id}', ${loc.lat}, ${loc.lng}, 15);
+        window.focusLocation(${JSON.stringify(loc.id)}, ${loc.lat}, ${loc.lng}, 15);
       }
       true;
     `);
   };
 
   const handleLocationPress = () => {
+    if (Platform.OS === 'web') {
+      const frameWindow = webFrameRef.current?.contentWindow as LeafletFrameWindow | null;
+      frameWindow?.centerMap?.(10.7626, 106.6822, 11.5);
+      return;
+    }
+
     webViewRef.current?.injectJavaScript(`
-      map.setView([10.7626, 106.6822], 11.5);
+      if (window.centerMap) {
+        window.centerMap(10.7626, 106.6822, 11.5);
+      }
       true;
     `);
   };
 
   return (
     <View style={styles.container}>
-      {/* 1. Real Map Layer using Leaflet via WebView */}
-      <WebView
-        ref={webViewRef}
-        style={StyleSheet.absoluteFill}
-        source={{ html: mapHtml }}
-        scrollEnabled={false}
-        bounces={false}
-        onLoadEnd={syncMarkers}
-      />
+      {/* Native uses WebView; web uses an iframe so React DOM does not mount a native WebView fallback. */}
+      {Platform.OS === 'web' ? (
+        <iframe
+          ref={webFrameRef}
+          title="HCMVision rain map"
+          srcDoc={mapHtml}
+          style={webMapFrameStyle}
+          onLoad={() => {
+            setMapReady(true);
+          }}
+        />
+      ) : (
+        <WebView
+          ref={webViewRef}
+          style={StyleSheet.absoluteFill}
+          source={{ html: mapHtml }}
+          scrollEnabled={false}
+          bounces={false}
+          onLoadEnd={() => {
+            setMapReady(true);
+          }}
+        />
+      )}
 
       {/* 3. Top UI Layer (Search & Filters) */}
       <View style={[styles.topUiContainer, { paddingTop: Math.max(insets.top, 16) }]}>

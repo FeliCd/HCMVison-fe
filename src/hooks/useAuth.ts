@@ -2,6 +2,11 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { apiClient } from '@/services/api';
+import {
+  addAuthenticatedAppStateSyncListener,
+  revokeCurrentDeviceTokenAsync,
+  syncDeviceTokenAsync,
+} from '@/services/NotificationManager';
 import { User } from '@/types/api';
 
 interface AuthContextType {
@@ -38,6 +43,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const token = await AsyncStorage.getItem('authToken');
         if (storedUser && token) {
           setUser(JSON.parse(storedUser));
+          void syncDeviceTokenAsync({ requestPermission: false }).catch((syncError) => {
+            console.warn('Failed to sync FCM token after session restore.', syncError);
+          });
         }
       } catch {
         // ignore
@@ -53,6 +61,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       router.replace('/login');
     });
+
+    const appStateSubscription = addAuthenticatedAppStateSyncListener();
+    return () => {
+      appStateSubscription.remove();
+    };
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
@@ -69,6 +82,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
+      void syncDeviceTokenAsync({ requestPermission: true }).catch((syncError) => {
+        console.warn('Failed to sync FCM token after login.', syncError);
+      });
       router.replace('/(tabs)/explore');
     } catch (err: any) {
       // Backend may return plain text string or JSON with message/title
@@ -122,10 +138,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [login]);
 
   const logout = useCallback(async () => {
-    await apiClient.clearToken();
-    await AsyncStorage.removeItem('user');
-    setUser(null);
-    router.replace('/login');
+    try {
+      // Only logout revokes the device token. Closing/killing the app must keep push enabled.
+      await revokeCurrentDeviceTokenAsync();
+    } catch (revokeError) {
+      console.warn('Failed to revoke FCM token during logout.', revokeError);
+    } finally {
+      await apiClient.clearToken();
+      await AsyncStorage.removeItem('user');
+      setUser(null);
+      router.replace('/login');
+    }
   }, []);
 
   const clearError = useCallback(() => setError(null), []);

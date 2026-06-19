@@ -18,11 +18,14 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import { useAuth } from '@/hooks/useAuth';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
+  const { error, isLoading, register } = useAuth();
+  const [formError, setFormError] = useState<string | null>(null);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,9 +37,18 @@ export default function RegisterScreen() {
     transform: [{ scale: btnScale.value }],
   }));
 
-  const handleRegister = () => {
-    // Navigate back to login or straight to explore after register
-    router.replace('/(tabs)/explore');
+  const handleRegister = async () => {
+    setFormError(null);
+    if (password !== confirmPassword) {
+      setFormError('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+
+    try {
+      await register(username.trim(), email.trim(), password);
+    } catch {
+      // AuthProvider already exposes the user-facing error.
+    }
   };
 
   return (
@@ -155,10 +167,12 @@ export default function RegisterScreen() {
               style={[styles.registerButton, btnStyle]}
               onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
               onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
+              disabled={isLoading}
               onPress={handleRegister}
             >
-              <Text style={styles.registerButtonText}>Đăng ký ngay</Text>
+              <Text style={styles.registerButtonText}>{isLoading ? 'Đang đăng ký...' : 'Đăng ký ngay'}</Text>
             </AnimatedPressable>
+            {formError || error ? <Text style={styles.errorText}>{formError || error}</Text> : null}
           </View>
 
           {/* Secondary Actions */}
@@ -290,6 +304,12 @@ const styles = StyleSheet.create({
     color: '#003735',
     fontSize: 15,
     fontWeight: '700',
+  },
+  errorText: {
+    color: '#ffb4ab',
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   secondaryActions: {
     marginTop: 24,
