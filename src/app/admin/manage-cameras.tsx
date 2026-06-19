@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon } from '@/components/icons';
+import { Icon, IconName } from '@/components/icons';
 import { useCamera } from '@/hooks/useCamera';
 import { Camera } from '@/types/api';
 import apiClient from '@/services/api';
@@ -143,6 +143,7 @@ export default function ManageCamerasScreen() {
               </View>
             ))
           )}
+          <View style={{ height: 80 }} />
         </ScrollView>
       )}
 
@@ -153,13 +154,30 @@ export default function ManageCamerasScreen() {
       >
         <Icon name="add" color="#003735" size={28} />
       </Pressable>
+
+      {/* Custom Bottom Tab Bar */}
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <BottomTabItem icon="grid_view" label="Dashboard" onPress={() => router.push('/admin' as any)} />
+        <BottomTabItem icon="map" label="Map" onPress={() => router.push('/admin/map' as any)} />
+        <BottomTabItem icon="videocam" label="Cameras" isActive />
+        <BottomTabItem icon="bar_chart" label="Reports" onPress={() => router.push('/admin/dashboard' as any)} />
+      </View>
     </View>
+  );
+}
+
+function BottomTabItem({ icon, label, isActive = false, onPress }: { icon: IconName, label: string, isActive?: boolean, onPress?: () => void }) {
+  return (
+    <Pressable style={[styles.bottomTabItem, isActive && styles.bottomTabItemActive]} onPress={onPress}>
+      <Icon name={icon} color={isActive ? "#34d399" : "#64748b"} size={22} />
+      <Text style={[styles.bottomTabLabel, isActive && styles.bottomTabLabelActive]}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#051424' },
-  fab: { position: 'absolute', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: '#00f2ea', justifyContent: 'center', alignItems: 'center', shadowColor: '#00f2ea', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  fab: { position: 'absolute', bottom: 90, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: '#00f2ea', justifyContent: 'center', alignItems: 'center', shadowColor: '#00f2ea', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 16 },
   backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#d4e4fa' },
@@ -182,4 +200,9 @@ const styles = StyleSheet.create({
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: 16, backgroundColor: 'rgba(239,68,68,0.08)', padding: 16, borderRadius: 12 },
   errorText: { flex: 1, color: '#fca5a5', fontSize: 13 },
   emptyText: { color: '#64748b', textAlign: 'center', paddingTop: 40, fontSize: 14 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', backgroundColor: '#0f172a', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 12 },
+  bottomTabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 8, marginHorizontal: 4 },
+  bottomTabItemActive: { backgroundColor: 'rgba(52, 211, 153, 0.1)' },
+  bottomTabLabel: { fontSize: 10, color: '#64748b', fontWeight: '600' },
+  bottomTabLabelActive: { color: '#34d399', fontWeight: '700' },
 });

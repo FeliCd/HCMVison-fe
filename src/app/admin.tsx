@@ -243,7 +243,7 @@ export default function AdminDashboardScreen() {
       {/* Custom Bottom Tab Bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <BottomTabItem icon="grid_view" label="Dashboard" isActive />
-        <BottomTabItem icon="map" label="Map" onPress={() => router.push('/(tabs)/explore' as any)} />
+        <BottomTabItem icon="map" label="Map" onPress={() => router.push('/admin/map' as any)} />
         <BottomTabItem icon="videocam" label="Cameras" onPress={() => router.push('/admin/manage-cameras' as any)} />
         <BottomTabItem icon="bar_chart" label="Reports" onPress={() => router.push('/admin/dashboard' as any)} />
       </View>
