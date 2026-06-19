@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import Animated, {
   BounceIn,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import apiClient from '@/services/api';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -26,14 +28,38 @@ export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [isSent, setIsSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const btnScale = useSharedValue(1);
   const btnStyle = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
   }));
 
-  const handleSendReset = () => {
-    setIsSent(true);
+  const handleSendReset = async () => {
+    setErrorMsg('');
+    if (!email.trim()) {
+      setErrorMsg('Vui lòng nhập địa chỉ email');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await apiClient.forgotPassword(email.trim());
+      setIsSent(true);
+    } catch (err: any) {
+      const responseData = err.response?.data;
+      let msg: string;
+      if (typeof responseData === 'string') {
+        msg = responseData;
+      } else if (responseData?.message) {
+        msg = responseData.message;
+      } else {
+        msg = 'Không thể gửi yêu cầu. Vui lòng kiểm tra lại email.';
+      }
+      setErrorMsg(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -80,9 +106,19 @@ export default function ForgotPasswordScreen() {
                 style={[styles.actionButton, btnStyle]}
                 onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
                 onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
+                onPress={() => router.push('/reset-password' as any)}
+              >
+                <Text style={styles.actionButtonText}>Đã có mã? Đặt lại mật khẩu</Text>
+              </AnimatedPressable>
+              
+              <AnimatedPressable
+                entering={FadeInUp.delay(700)}
+                style={[styles.actionButton, btnStyle, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#00f2ea', marginTop: 12 }]}
+                onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
+                onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
                 onPress={() => router.replace('/login')}
               >
-                <Text style={styles.actionButtonText}>Quay lại Đăng nhập</Text>
+                <Text style={[styles.actionButtonText, { color: '#00f2ea' }]}>Quay lại Đăng nhập</Text>
               </AnimatedPressable>
             </View>
           ) : (
@@ -106,14 +142,27 @@ export default function ForgotPasswordScreen() {
                 </View>
               </View>
 
+              {/* Error Banner */}
+              {errorMsg ? (
+                <View style={styles.errorBanner}>
+                  <Icon name="warning" color="#fca5a5" size={16} />
+                  <Text style={styles.errorText}>{errorMsg}</Text>
+                </View>
+              ) : null}
+
               {/* Primary CTA */}
               <AnimatedPressable
-                style={[styles.actionButton, btnStyle]}
-                onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
+                style={[styles.actionButton, btnStyle, isLoading && styles.actionButtonDisabled]}
+                onPressIn={() => { if (!isLoading) btnScale.value = withSpring(0.95, { damping: 12 }); }}
                 onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
                 onPress={handleSendReset}
+                disabled={isLoading}
               >
-                <Text style={styles.actionButtonText}>Gửi yêu cầu</Text>
+                {isLoading ? (
+                  <ActivityIndicator color="#003735" size="small" />
+                ) : (
+                  <Text style={styles.actionButtonText}>Gửi yêu cầu</Text>
+                )}
               </AnimatedPressable>
             </View>
           )}
@@ -233,6 +282,25 @@ const styles = StyleSheet.create({
     color: '#003735',
     fontSize: 15,
     fontWeight: '700',
+  },
+  actionButtonDisabled: {
+    opacity: 0.7,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 10,
+    padding: 12,
+  },
+  errorText: {
+    flex: 1,
+    color: '#fca5a5',
+    fontSize: 13,
+    lineHeight: 18,
   },
   successState: {
     alignItems: 'center',

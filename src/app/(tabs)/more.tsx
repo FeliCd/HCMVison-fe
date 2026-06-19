@@ -71,7 +71,7 @@ export default function MoreScreen() {
           <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Tài khoản</Text>
           <MenuRow icon="person_outline" title="Chỉnh sửa thông tin" onPress={() => router.push('/profile/edit' as any)} colors={colors} />
           <MenuRow icon="lock_outline" title="Đổi mật khẩu" onPress={() => router.push('/profile/change-password' as any)} colors={colors} hasTopBorder />
-          <MenuRow icon="notifications_none" title="Cài đặt thông báo" onPress={() => {}} colors={colors} hasTopBorder />
+          <MenuRow icon="notifications_none" title="Cài đặt thông báo" onPress={() => router.push('/profile/subscriptions' as any)} colors={colors} hasTopBorder />
 
           {user?.role === 'Admin' && (
             <Pressable
@@ -91,7 +91,8 @@ export default function MoreScreen() {
 
         <Animated.View entering={FadeInUp.duration(500).delay(200)} style={[styles.menuSection, dynamicStyles.card]}>
           <Text style={[styles.sectionTitle, dynamicStyles.sectionTitle]}>Ứng dụng</Text>
-          <MenuRow icon="language" title="Ngôn ngữ" value="Tiếng Việt" onPress={() => {}} colors={colors} />
+          <MenuRow icon="smart_toy" title="Trợ lý AI (Chatbot)" onPress={() => router.push('/chatbot' as any)} colors={colors} />
+          <MenuRow icon="language" title="Ngôn ngữ" value="Tiếng Việt" onPress={() => {}} colors={colors} hasTopBorder />
           <MenuRow icon="dark_mode" title="Giao diện" value={themeDisplayNames[theme]} onPress={() => router.push('/profile/theme-settings' as any)} colors={colors} hasTopBorder />
           <MenuRow icon="help_outline" title="Trợ giúp & Hỗ trợ" onPress={() => {}} colors={colors} hasTopBorder />
           <MenuRow icon="info_outline" title="Giới thiệu về HCMVision" value="v1.0.0" onPress={() => {}} colors={colors} hasTopBorder />

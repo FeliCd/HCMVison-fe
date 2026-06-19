@@ -99,6 +99,12 @@ const mapHtml = (isDark: boolean) => `
 
             map.fitBounds(bounds, {padding: [40, 40]});
         };
+
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'DRAW_ROUTES') {
+                if (window.drawRoutes) window.drawRoutes(event.data.routesJson, event.data.selectedRouteId);
+            }
+        });
     </script>
 </body>
 </html>
@@ -108,6 +114,9 @@ export default function RouteScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const webViewRef = useRef<WebView>(null);
+  const iframeRef = useRef<any>(null);
+
+  const [isSearchExpanded, setIsSearchExpanded] = useState(true);
 
   const [from, setFrom] = useState('Vị trí hiện tại');
   const [to, setTo] = useState('');
@@ -233,6 +242,7 @@ export default function RouteScreen() {
       setRoutes(loadedRoutes);
       if (loadedRoutes.length > 0) {
         setSelectedRouteId(loadedRoutes[0].id);
+        setIsSearchExpanded(false);
       }
     } catch (err: any) {
       console.error(err);
@@ -250,26 +260,40 @@ export default function RouteScreen() {
         coordinates: r.coordinates
       }))).replace(/'/g, "\\\\'");
 
-      webViewRef.current?.injectJavaScript(`
-        if (window.drawRoutes) {
-          window.drawRoutes('${routesJson}', '${selectedRouteId}');
-        }
-        true;
-      `);
+      if (Platform.OS === 'web') {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'DRAW_ROUTES', routesJson, selectedRouteId }, '*');
+      } else {
+        webViewRef.current?.injectJavaScript(`
+          if (window.drawRoutes) {
+            window.drawRoutes('${routesJson}', '${selectedRouteId}');
+          }
+          true;
+        `);
+      }
     }
   }, [routes, selectedRouteId]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
-        <Animated.Text entering={FadeInUp.duration(500)} style={[styles.headerTitle, { color: colors.text }]}>Tuyến đường</Animated.Text>
-      </View>
-
-      <View style={[styles.topHalf, { borderColor: colors.border }]}>
+      
+      {/* 1. Map Layer (Absolute Fill) */}
+      <View style={StyleSheet.absoluteFill}>
         {Platform.OS === 'web' ? (
-          <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#051424' : '#f1f5f9' }]}>
-            <Text style={{ color: colors.text, fontSize: 16 }}>Bản đồ không hỗ trợ trên Web</Text>
-          </View>
+          <iframe
+            ref={iframeRef}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', border: 'none' }}
+            srcDoc={mapHtml(isDark)}
+            onLoad={() => {
+              if (routes.length > 0 && selectedRouteId) {
+                const routesJson = JSON.stringify(routes.map(r => ({
+                  id: r.id,
+                  isSafe: r.isSafe,
+                  coordinates: r.coordinates
+                }))).replace(/'/g, "\\\\'");
+                iframeRef.current?.contentWindow?.postMessage({ type: 'DRAW_ROUTES', routesJson, selectedRouteId }, '*');
+              }
+            }}
+          />
         ) : (
           <WebView
             ref={webViewRef}
@@ -279,110 +303,138 @@ export default function RouteScreen() {
             bounces={false}
           />
         )}
-        <Animated.View entering={FadeInUp.duration(600).delay(100)} style={[styles.inputOverlay, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
-          <View style={styles.inputRow}>
-            <View style={styles.inputDotGreen} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              value={from}
-              onChangeText={setFrom}
-              placeholder="Điểm xuất phát"
-              placeholderTextColor={colors.textMuted}
-              onSubmitEditing={handleSearch}
-            />
-          </View>
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <View style={styles.inputRow}>
-            <View style={styles.inputDotRed} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              value={to}
-              onChangeText={setTo}
-              placeholder="Điểm đến"
-              placeholderTextColor={colors.textMuted}
-              onSubmitEditing={handleSearch}
-            />
-          </View>
-          
-          <Pressable style={[styles.swapButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handleSwap}>
-            <Icon name="refresh" color={colors.primary} size={16} />
-          </Pressable>
-
-          <Pressable style={[styles.searchButton, { backgroundColor: colors.primary }]} onPress={handleSearch}>
-            {loading ? (
-              <ActivityIndicator size="small" color="#051424" />
-            ) : (
-              <Text style={styles.searchButtonText}>Tìm đường</Text>
-            )}
-          </Pressable>
-        </Animated.View>
       </View>
 
-      <ScrollView style={styles.bottomHalf} contentContainerStyle={{ paddingBottom: 40 }}>
-        {errorMsg ? (
-           <Animated.View entering={FadeInUp.duration(400)} style={styles.errorBox}>
-             <Icon name="warning" color="#fca5a5" size={20} />
-             <Text style={styles.errorText}>{errorMsg}</Text>
-           </Animated.View>
-        ) : null}
+      {/* 2. Top & Bottom Overlays */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]} pointerEvents="none">
+          <Animated.Text entering={FadeInUp.duration(500)} style={[styles.headerTitle, { color: colors.text }]}>Tuyến đường</Animated.Text>
+        </View>
 
-        {routes.length > 0 && (
-          <Animated.Text entering={FadeInUp.duration(500).delay(200)} style={[styles.sectionTitle, { color: colors.textMuted }]}>
-            Đề xuất tuyến đường
-          </Animated.Text>
-        )}
-
-        {routes.map((route, index) => {
-          const isWarning = !route.isSafe || route.warnings.length > 0 || route.badTrafficWarnings.length > 0;
-          const isSelected = selectedRouteId === route.id;
-          
-          let mainWarning = 'Tuyến đường tối ưu nhất hiện tại. Không có ngập nước hoặc kẹt xe.';
-          let shortStatus = 'Thông thoáng';
-          
-          if (isWarning) {
-             const allWarns = [...route.warnings.map(w => w.reason), ...route.badTrafficWarnings.map(w => w.reason)];
-             if (allWarns.length > 0) {
-               mainWarning = `Cảnh báo: ${allWarns[0]}`;
-             } else {
-               mainWarning = 'Có cảnh báo thời tiết hoặc kẹt xe trên tuyến đường.';
-             }
-             
-             if (route.warnings.length > 0) {
-                shortStatus = 'Mưa lớn / Ngập';
-             } else {
-                shortStatus = 'Kẹt xe';
-             }
-          }
-
-          return (
-            <Animated.View key={route.id} entering={FadeInUp.duration(600).delay(300 + index * 150)} layout={Layout.springify()}>
-              <Pressable 
-                style={[
-                  styles.routeCard, 
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  isWarning && { borderColor: colors.dangerMuted },
-                  isSelected && { borderColor: colors.primary, borderWidth: 2 }
-                ]}
-                onPress={() => setSelectedRouteId(route.id)}
-              >
-                <View style={styles.routeHeader}>
-                  <View>
-                    <Text style={[isWarning ? styles.routeTimeWarning : styles.routeTime, !isWarning && { color: colors.primary }]}>{route.durationMin} phút</Text>
-                    <Text style={[styles.routeDistance, { color: colors.textMuted }]}>{route.distanceKm} km • {route.summary}</Text>
-                  </View>
-                  <View style={isWarning ? styles.statusChipRed : styles.statusChipGreen}>
-                    <Icon name={isWarning ? (route.warnings.length > 0 ? "rainy" : "traffic") : "traffic"} color={isWarning ? colors.danger : colors.primary} size={12} />
-                    <Text style={[isWarning ? styles.statusChipRedText : styles.statusChipGreenText, isWarning ? { color: colors.danger } : { color: colors.primary }]}>{shortStatus}</Text>
-                  </View>
-                </View>
-                <View style={[styles.routeDetails, { borderTopColor: colors.border }]}>
-                  <Text style={[isWarning ? styles.routeDescWarning : styles.routeDesc, !isWarning && { color: colors.text }]}>{mainWarning}</Text>
-                </View>
+        {/* Search Overlay */}
+        <Animated.View entering={FadeInUp.duration(600).delay(100)} style={[styles.inputOverlay, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]} pointerEvents="auto">
+          {isSearchExpanded ? (
+            <>
+              <View style={styles.inputRow}>
+                <View style={styles.inputDotGreen} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  value={from}
+                  onChangeText={setFrom}
+                  placeholder="Điểm xuất phát"
+                  placeholderTextColor={colors.textMuted}
+                  onSubmitEditing={handleSearch}
+                />
+              </View>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.inputRow}>
+                <View style={styles.inputDotRed} />
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  value={to}
+                  onChangeText={setTo}
+                  placeholder="Điểm đến"
+                  placeholderTextColor={colors.textMuted}
+                  onSubmitEditing={handleSearch}
+                />
+              </View>
+              
+              <Pressable style={[styles.swapButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handleSwap}>
+                <Icon name="refresh" color={colors.primary} size={16} />
               </Pressable>
-            </Animated.View>
-          );
-        })}
-      </ScrollView>
+
+              <Pressable style={[styles.searchButton, { backgroundColor: colors.primary }]} onPress={handleSearch}>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#051424" />
+                ) : (
+                  <Text style={styles.searchButtonText}>Tìm đường</Text>
+                )}
+              </Pressable>
+            </>
+          ) : (
+            <Pressable onPress={() => setIsSearchExpanded(true)} style={styles.collapsedSearch}>
+              <Icon name="search" color={colors.textMuted} size={20} />
+              <Text style={[styles.collapsedText, { color: colors.text }]} numberOfLines={1}>{from}  →  {to}</Text>
+              <Icon name="edit" color={colors.primary} size={18} />
+            </Pressable>
+          )}
+        </Animated.View>
+
+        {/* Bottom Overlay */}
+        {(!isSearchExpanded || errorMsg !== '') && (
+          <View style={styles.bottomOverlay} pointerEvents="box-none">
+            <ScrollView style={styles.bottomScrollView} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16), paddingHorizontal: 16 }} pointerEvents="auto" showsVerticalScrollIndicator={false}>
+              {errorMsg ? (
+                 <Animated.View entering={FadeInUp.duration(400)} style={styles.errorBox}>
+                   <Icon name="warning" color="#fca5a5" size={20} />
+                   <Text style={styles.errorText}>{errorMsg}</Text>
+                 </Animated.View>
+              ) : null}
+
+              {!isSearchExpanded && routes.length > 0 && (
+                <View>
+                  <Animated.Text entering={FadeInUp.duration(500).delay(200)} style={[styles.sectionTitle, { color: colors.textMuted }]}>
+                    Đề xuất tuyến đường
+                  </Animated.Text>
+
+                  {routes.map((route, index) => {
+                    const isWarning = !route.isSafe || route.warnings.length > 0 || route.badTrafficWarnings.length > 0;
+                    const isSelected = selectedRouteId === route.id;
+                    
+                    let mainWarning = 'Tuyến đường tối ưu nhất hiện tại. Không có ngập nước hoặc kẹt xe.';
+                    let shortStatus = 'Thông thoáng';
+                    
+                    if (isWarning) {
+                       const allWarns = [...route.warnings.map(w => w.reason), ...route.badTrafficWarnings.map(w => w.reason)];
+                       if (allWarns.length > 0) {
+                         mainWarning = `Cảnh báo: ${allWarns[0]}`;
+                       } else {
+                         mainWarning = 'Có cảnh báo thời tiết hoặc kẹt xe trên tuyến đường.';
+                       }
+                       
+                       if (route.warnings.length > 0) {
+                          shortStatus = 'Mưa lớn / Ngập';
+                       } else {
+                          shortStatus = 'Kẹt xe';
+                       }
+                    }
+
+                    return (
+                      <Animated.View key={route.id} entering={FadeInUp.duration(600).delay(100 + index * 100)} layout={Layout.springify()}>
+                        <Pressable 
+                          style={[
+                            styles.routeCard, 
+                            { backgroundColor: colors.surface, borderColor: colors.border },
+                            isWarning && { borderColor: colors.dangerMuted },
+                            isSelected && { borderColor: colors.primary, borderWidth: 2 }
+                          ]}
+                          onPress={() => setSelectedRouteId(route.id)}
+                        >
+                          <View style={styles.routeHeader}>
+                            <View>
+                              <Text style={[isWarning ? styles.routeTimeWarning : styles.routeTime, !isWarning && { color: colors.primary }]}>{route.durationMin} phút</Text>
+                              <Text style={[styles.routeDistance, { color: colors.textMuted }]}>{route.distanceKm} km • {route.summary}</Text>
+                            </View>
+                            <View style={isWarning ? styles.statusChipRed : styles.statusChipGreen}>
+                              <Icon name={isWarning ? (route.warnings.length > 0 ? "rainy" : "traffic") : "traffic"} color={isWarning ? colors.danger : colors.primary} size={12} />
+                              <Text style={[isWarning ? styles.statusChipRedText : styles.statusChipGreenText, isWarning ? { color: colors.danger } : { color: colors.primary }]}>{shortStatus}</Text>
+                            </View>
+                          </View>
+                          <View style={[styles.routeDetails, { borderTopColor: colors.border }]}>
+                            <Text style={[isWarning ? styles.routeDescWarning : styles.routeDesc, !isWarning && { color: colors.text }]}>{mainWarning}</Text>
+                          </View>
+                        </Pressable>
+                      </Animated.View>
+                    );
+                  })}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -390,32 +442,18 @@ export default function RouteScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
   },
   header: {
     marginBottom: 16,
+    paddingHorizontal: 16,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
-  topHalf: {
-    height: 360,
-    borderRadius: 24,
-    overflow: 'hidden',
-    position: 'relative',
-    marginBottom: 20,
-    borderWidth: 1,
-  },
-  bottomHalf: {
-    flex: 1,
-  },
   inputOverlay: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
+    marginHorizontal: 16,
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
@@ -424,6 +462,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 8,
+  },
+  bottomOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '45%',
+    zIndex: 20,
+  },
+  bottomScrollView: {
+    flex: 1,
+  },
+  collapsedSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  collapsedText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
   },
   inputRow: {
     flexDirection: 'row',
