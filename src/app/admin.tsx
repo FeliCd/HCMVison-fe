@@ -243,9 +243,9 @@ export default function AdminDashboardScreen() {
       {/* Custom Bottom Tab Bar */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <BottomTabItem icon="grid_view" label="Dashboard" isActive />
-        <BottomTabItem icon="map" label="Map" />
-        <BottomTabItem icon="videocam" label="Cameras" />
-        <BottomTabItem icon="bar_chart" label="Reports" />
+        <BottomTabItem icon="map" label="Map" onPress={() => router.push('/(tabs)/explore' as any)} />
+        <BottomTabItem icon="videocam" label="Cameras" onPress={() => router.push('/admin/manage-cameras' as any)} />
+        <BottomTabItem icon="bar_chart" label="Reports" onPress={() => router.push('/admin/dashboard' as any)} />
       </View>
     </View>
   );
@@ -285,9 +285,9 @@ function ActivityItem({ icon, iconColor, title, time }: { icon: IconName, iconCo
   );
 }
 
-function BottomTabItem({ icon, label, isActive = false }: { icon: IconName, label: string, isActive?: boolean }) {
+function BottomTabItem({ icon, label, isActive = false, onPress }: { icon: IconName, label: string, isActive?: boolean, onPress?: () => void }) {
   return (
-    <Pressable style={[styles.bottomTabItem, isActive && styles.bottomTabItemActive]}>
+    <Pressable style={[styles.bottomTabItem, isActive && styles.bottomTabItemActive]} onPress={onPress}>
       <Icon name={icon} color={isActive ? "#34d399" : "#64748b"} size={22} />
       <Text style={[styles.bottomTabLabel, isActive && styles.bottomTabLabelActive]}>{label}</Text>
     </Pressable>

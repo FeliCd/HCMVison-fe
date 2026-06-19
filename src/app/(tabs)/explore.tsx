@@ -142,6 +142,15 @@ const mapHtml = (isDark: boolean) => `
             userMarker = L.marker([lat, lng], {icon: customIcon}).addTo(map);
             map.setView([lat, lng], 15);
         };
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'SYNC_MARKERS') {
+                if (window.setMarkers) window.setMarkers(event.data.data);
+            } else if (event.data && event.data.type === 'FOCUS_LOCATION') {
+                if (window.focusLocation) window.focusLocation(event.data.id, event.data.lat, event.data.lng, event.data.zoom);
+            } else if (event.data && event.data.type === 'SET_USER_LOCATION') {
+                if (window.setUserLocation) window.setUserLocation(event.data.lat, event.data.lng);
+            }
+        });
     </script>
 </body>
 </html>
@@ -160,6 +169,7 @@ export default function TabTwoScreen() {
   const { cameras, getCameras } = useCamera();
   const { colors, isDark } = useTheme();
   const webViewRef = useRef<WebView>(null);
+  const iframeRef = useRef<any>(null);
 
   useEffect(() => {
     getWeatherLogs(60, 500);
@@ -228,12 +238,17 @@ export default function TabTwoScreen() {
       return loc.type === activeSegment || loc.type === 'combine';
     });
     const locsString = JSON.stringify(filtered).replace(/'/g, "\\\\'");
-    webViewRef.current?.injectJavaScript(`
-      if (window.setMarkers) {
-        window.setMarkers('${locsString}');
-      }
-      true;
-    `);
+    
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage({ type: 'SYNC_MARKERS', data: locsString }, '*');
+    } else {
+      webViewRef.current?.injectJavaScript(`
+        if (window.setMarkers) {
+          window.setMarkers('${locsString}');
+        }
+        true;
+      `);
+    }
   };
 
   useEffect(() => {
@@ -261,12 +276,16 @@ export default function TabTwoScreen() {
     setShowSuggestions(false);
     Keyboard.dismiss();
     
-    webViewRef.current?.injectJavaScript(`
-      if (window.focusLocation) {
-        window.focusLocation('${loc.id}', ${loc.lat}, ${loc.lng}, 15);
-      }
-      true;
-    `);
+    if (Platform.OS === 'web') {
+      iframeRef.current?.contentWindow?.postMessage({ type: 'FOCUS_LOCATION', id: loc.id, lat: loc.lat, lng: loc.lng, zoom: 15 }, '*');
+    } else {
+      webViewRef.current?.injectJavaScript(`
+        if (window.focusLocation) {
+          window.focusLocation('${loc.id}', ${loc.lat}, ${loc.lng}, 15);
+        }
+        true;
+      `);
+    }
   };
 
   const handleLocationPress = async () => {
@@ -277,12 +296,16 @@ export default function TabTwoScreen() {
         return;
       }
       let location = await Location.getCurrentPositionAsync({});
-      webViewRef.current?.injectJavaScript(`
-        if (window.setUserLocation) {
-          window.setUserLocation(${location.coords.latitude}, ${location.coords.longitude});
-        }
-        true;
-      `);
+      if (Platform.OS === 'web') {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'SET_USER_LOCATION', lat: location.coords.latitude, lng: location.coords.longitude }, '*');
+      } else {
+        webViewRef.current?.injectJavaScript(`
+          if (window.setUserLocation) {
+            window.setUserLocation(${location.coords.latitude}, ${location.coords.longitude});
+          }
+          true;
+        `);
+      }
     } catch (e) {
       alert('Không thể lấy vị trí hiện tại.');
     }
@@ -290,14 +313,23 @@ export default function TabTwoScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <WebView
-        ref={webViewRef}
-        style={StyleSheet.absoluteFill}
-        source={{ html: mapHtml(isDark) }}
-        scrollEnabled={false}
-        bounces={false}
-        onLoadEnd={syncMarkers}
-      />
+      {Platform.OS === 'web' ? (
+        <iframe
+          ref={iframeRef}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', border: 'none' }}
+          srcDoc={mapHtml(isDark)}
+          onLoad={() => syncMarkers()}
+        />
+      ) : (
+        <WebView
+          ref={webViewRef}
+          style={StyleSheet.absoluteFill}
+          source={{ html: mapHtml(isDark) }}
+          scrollEnabled={false}
+          bounces={false}
+          onLoadEnd={syncMarkers}
+        />
+      )}
 
       <View style={[styles.topUiContainer, { paddingTop: Math.max(insets.top, 16) }]}>
         <View style={styles.searchContainer}>

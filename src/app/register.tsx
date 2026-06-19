@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,25 +19,48 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import { useAuth } from '@/hooks/useAuth';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
+  const { register, isLoading, error, clearError } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [localError, setLocalError] = useState('');
 
   const btnScale = useSharedValue(1);
   const btnStyle = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
   }));
 
-  const handleRegister = () => {
-    // Navigate back to login or straight to explore after register
-    router.replace('/(tabs)/explore');
+  const handleRegister = async () => {
+    setLocalError('');
+    clearError();
+
+    if (!username.trim()) {
+      setLocalError('Vui lòng nhập tên đăng nhập');
+      return;
+    }
+    if (!password.trim()) {
+      setLocalError('Vui lòng nhập mật khẩu');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLocalError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    try {
+      await register(username.trim(), email.trim(), password);
+      // useAuth.register() tự auto-login và redirect sang /(tabs)/explore
+    } catch {
+      // error đã được set trong useAuth
+    }
   };
 
   return (
@@ -150,14 +174,27 @@ export default function RegisterScreen() {
               </View>
             </View>
 
+            {/* Error Banner */}
+            {(error || localError) ? (
+              <View style={styles.errorBanner}>
+                <Icon name="warning" color="#fca5a5" size={16} />
+                <Text style={styles.errorText}>{localError || error}</Text>
+              </View>
+            ) : null}
+
             {/* Primary CTA */}
             <AnimatedPressable
-              style={[styles.registerButton, btnStyle]}
-              onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
+              style={[styles.registerButton, btnStyle, isLoading && styles.registerButtonDisabled]}
+              onPressIn={() => { if (!isLoading) btnScale.value = withSpring(0.95, { damping: 12 }); }}
               onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
               onPress={handleRegister}
+              disabled={isLoading}
             >
-              <Text style={styles.registerButtonText}>Đăng ký ngay</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#003735" size="small" />
+              ) : (
+                <Text style={styles.registerButtonText}>Đăng ký ngay</Text>
+              )}
             </AnimatedPressable>
           </View>
 
@@ -281,6 +318,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
     shadowColor: '#000000',
+  },
+  registerButtonDisabled: {
+    opacity: 0.7,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 10,
+    padding: 12,
+  },
+  errorText: {
+    flex: 1,
+    color: '#fca5a5',
+    fontSize: 13,
+    lineHeight: 18,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 16,

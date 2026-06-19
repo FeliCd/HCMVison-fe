@@ -133,6 +133,18 @@ export default function CameraDetailScreen() {
               </View>
             </View>
 
+            {/* User Report Action */}
+            <Pressable 
+              style={styles.reportButton}
+              onPress={() => router.push({
+                pathname: '/report-weather' as any,
+                params: { cameraId: id, cameraName: displayName }
+              })}
+            >
+              <Icon name="warning" color="#003735" size={20} />
+              <Text style={styles.reportButtonText}>Báo cáo thời tiết khu vực này</Text>
+            </Pressable>
+
             {/* AI Analysis */}
             {latestLog && (
               <View style={styles.aiCard}>
@@ -221,4 +233,6 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', justifyContent: 'space-between' },
   metaLabel: { fontSize: 13, color: '#849492' },
   metaValue: { fontSize: 13, color: '#d4e4fa', fontWeight: '500' },
+  reportButton: { backgroundColor: '#00f2ea', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 12, gap: 8 },
+  reportButtonText: { color: '#003735', fontSize: 15, fontWeight: '700' },
 });

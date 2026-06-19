@@ -38,6 +38,21 @@ export default function ManageCamerasScreen() {
     }
   };
 
+  const handleDeleteCamera = (id: string) => {
+    Alert.alert('Xác nhận xoá', 'Bạn có chắc chắn muốn xoá camera này không?', [
+      { text: 'Huỷ', style: 'cancel' },
+      { text: 'Xoá', style: 'destructive', onPress: async () => {
+        try {
+          await apiClient.deleteCamera(id);
+          getCameras(searchText, 1, 50);
+          Alert.alert('Thành công', 'Đã xoá camera');
+        } catch (e: any) {
+          Alert.alert('Lỗi', e?.response?.data?.message || 'Không thể xoá camera');
+        }
+      }}
+    ]);
+  };
+
   const getStatusColor = (status: Camera['status']) => {
     switch (status) {
       case 'Active': return '#00f2ea';
@@ -103,9 +118,15 @@ export default function ManageCamerasScreen() {
                 <View style={styles.actionRow}>
                   <Pressable
                     style={styles.actionBtn}
-                    onPress={() => router.push({ pathname: '/camera-detail', params: { id: camera.id, name: camera.name } })}
+                    onPress={() => router.push({ pathname: '/admin/manage-cameras/edit' as any, params: { id: camera.id, name: camera.name, lat: camera.latitude, lng: camera.longitude, wardId: camera.wardId, streamUrl: camera.streamUrl } })}
                   >
-                    <Text style={styles.actionText}>Xem chi tiết</Text>
+                    <Text style={styles.actionText}>Sửa</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.actionBtn, { borderColor: 'rgba(239, 68, 68, 0.3)' }]}
+                    onPress={() => handleDeleteCamera(camera.id)}
+                  >
+                    <Text style={[styles.actionText, { color: '#fca5a5' }]}>Xoá</Text>
                   </Pressable>
                   <Pressable
                     style={[styles.actionBtn, { borderColor: 'rgba(0, 242, 234, 0.3)' }]}
@@ -124,12 +145,21 @@ export default function ManageCamerasScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* FAB Thêm Camera */}
+      <Pressable 
+        style={styles.fab}
+        onPress={() => router.push('/admin/manage-cameras/edit' as any)}
+      >
+        <Icon name="add" color="#003735" size={28} />
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#051424' },
+  fab: { position: 'absolute', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: '#00f2ea', justifyContent: 'center', alignItems: 'center', shadowColor: '#00f2ea', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 16 },
   backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#d4e4fa' },
