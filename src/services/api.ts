@@ -3,12 +3,24 @@ import axios, { AxiosError, AxiosInstance } from 'axios';
 
 import { Platform } from 'react-native';
 
-const RAW_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5057/api';
+const getApiBaseUrl = () => {
+  let url = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5057/api';
+  
+  // Handle Android Emulator localhost issue
+  if (Platform.OS === 'android' && url.includes('localhost')) {
+    url = url.replace('localhost', '10.0.2.2');
+  }
+  
+  // Ensure it ends with /api
+  if (!url.endsWith('/api') && !url.endsWith('/api/')) {
+    url = url.replace(/\/$/, '') + '/api';
+  }
+  
+  return url;
+};
 
-// Handle Android Emulator localhost issue
-const API_BASE_URL = Platform.OS === 'android' && RAW_API_URL.includes('localhost')
-  ? RAW_API_URL.replace('localhost', '10.0.2.2')
-  : RAW_API_URL;
+const API_BASE_URL = getApiBaseUrl();
+
 
 class ApiClient {
   private readonly client: AxiosInstance;

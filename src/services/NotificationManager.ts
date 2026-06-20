@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsType from 'expo-notifications';
 import { router } from 'expo-router';
 import { AppState, Platform } from 'react-native';
 
@@ -23,16 +23,27 @@ const noopSubscription: RemovableSubscription = {
   remove: () => {},
 };
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    // Expo SDK 56 uses banner/list for foreground presentation.
-    // The backend still sends a Notification payload so the OS can show tray notifications when the app is killed.
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+const isExpoGo = Constants.appOwnership === 'expo';
+const Notifications = (Platform.OS !== 'web' && !isExpoGo) ? require('expo-notifications') : null;
+
+if (Notifications) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        // Expo SDK 56 uses banner/list for foreground presentation.
+        // The backend still sends a Notification payload so the OS can show tray notifications when the app is killed.
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch (e) {
+    console.warn('Notifications.setNotificationHandler is not supported in this environment:', e);
+  }
+}
+
+
 
 function createFallbackDeviceId() {
   return `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
@@ -85,12 +96,12 @@ async function hasNotificationPermissionAsync(requestPermission: boolean) {
   return requestedPermission.status === 'granted';
 }
 
-function getNativeTokenString(token: Notifications.DevicePushToken) {
+function getNativeTokenString(token: NotificationsType.DevicePushToken) {
   return typeof token.data === 'string' ? token.data : null;
 }
 
 export async function registerForPushNotificationsAsync(options: SyncOptions = {}) {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || isExpoGo) {
     return null;
   }
 
@@ -159,7 +170,7 @@ export async function revokeCurrentDeviceTokenAsync() {
 }
 
 export function addPushTokenRefreshListener(): RemovableSubscription {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || isExpoGo) {
     return noopSubscription;
   }
 
@@ -199,12 +210,12 @@ export function addAuthenticatedAppStateSyncListener() {
   });
 }
 
-function getWardIdFromNotification(response: Notifications.NotificationResponse) {
+function getWardIdFromNotification(response: NotificationsType.NotificationResponse) {
   const wardId = response.notification.request.content.data?.wardId;
   return typeof wardId === 'string' && wardId.trim().length > 0 ? wardId.trim() : null;
 }
 
-export function handleNotificationResponse(response: Notifications.NotificationResponse | null) {
+export function handleNotificationResponse(response: NotificationsType.NotificationResponse | null) {
   if (!response) {
     return;
   }
@@ -230,7 +241,7 @@ function getLastNotificationResponseSafely() {
 }
 
 export function addNotificationTapListener(): RemovableSubscription {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || isExpoGo) {
     return noopSubscription;
   }
 

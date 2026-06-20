@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { apiClient } from '@/services/api';
 import { Camera, CameraListResponse } from '@/types/api';
 
@@ -9,25 +9,28 @@ export const useCamera = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const getCameras = async (search?: string, page = 1, pageSize = 10, append = false) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await apiClient.getCameras(search, undefined, page, pageSize);
-      const data = response.data as CameraListResponse;
-      const computedTotalPages = Math.ceil(data.total / data.pageSize) || 1;
-      setCameras(append ? (prev) => [...prev, ...data.data] : data.data);
-      setTotalPages(computedTotalPages);
-      setTotal(data.total);
-      return { ...data, totalPages: computedTotalPages };
-    } catch (err: any) {
-      const message = err.response?.data?.message || 'Không thể tải danh sách camera';
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
+  const getCameras = useCallback(
+    async (search?: string, page = 1, pageSize = 10, append = false) => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await apiClient.getCameras(search, undefined, page, pageSize);
+        const data = response.data as CameraListResponse;
+        const computedTotalPages = Math.ceil(data.total / data.pageSize) || 1;
+        setCameras(append ? (prev) => [...prev, ...data.data] : data.data);
+        setTotalPages(computedTotalPages);
+        setTotal(data.total);
+        return { ...data, totalPages: computedTotalPages };
+      } catch (err: any) {
+        const message = err.response?.data?.message || 'Không thể tải danh sách camera';
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   const createCamera = async (data: Parameters<typeof apiClient.createCamera>[0]) => {
     setLoading(true);
