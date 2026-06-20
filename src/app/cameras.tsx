@@ -12,17 +12,21 @@ export default function CamerasScreen() {
   const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
-    getCameras(undefined, 1, 20);
+    getCameras(undefined, 1, 200);
   }, [getCameras]);
 
   const handleSearch = useCallback((text: string) => {
     setSearchText(text);
-    if (text.trim().length >= 2) {
-      getCameras(text.trim(), 1, 20);
-    } else if (text.trim().length === 0) {
-      getCameras(undefined, 1, 20);
-    }
-  }, [getCameras]);
+  }, []);
+
+  const filteredCameras = cameras.filter((camera) => {
+    if (!searchText) return true;
+    const query = searchText.toLowerCase();
+    const nameMatch = camera.name ? camera.name.toLowerCase().includes(query) : false;
+    const wardMatch = camera.wardName ? camera.wardName.toLowerCase().includes(query) : false;
+    const idMatch = camera.id ? camera.id.toLowerCase().includes(query) : false;
+    return nameMatch || wardMatch || idMatch;
+  });
 
   const getStatusColor = (status: Camera['status']) => {
     switch (status) {
@@ -81,13 +85,13 @@ export default function CamerasScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {cameras.length === 0 ? (
+          {filteredCameras.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Icon name="videocam" color="#334155" size={48} />
               <Text style={styles.emptyText}>Không tìm thấy camera nào</Text>
             </View>
           ) : (
-            cameras.map((camera) => (
+            filteredCameras.map((camera) => (
               <Pressable
                 key={camera.id}
                 style={styles.cameraItem}

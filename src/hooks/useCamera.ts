@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { apiClient } from '@/services/api';
 import { Camera, CameraListResponse } from '@/types/api';
 
@@ -9,7 +9,7 @@ export const useCamera = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const getCameras = async (search?: string, page = 1, pageSize = 10, append = false) => {
+  const getCameras = useCallback(async (search?: string, page = 1, pageSize = 10, append = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -27,7 +27,7 @@ export const useCamera = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const createCamera = async (data: Parameters<typeof apiClient.createCamera>[0]) => {
     setLoading(true);
@@ -73,3 +73,4 @@ export const useCamera = () => {
 
   return { cameras, loading, error, totalPages, total, getCameras, createCamera, updateCamera, deleteCamera };
 };
+
