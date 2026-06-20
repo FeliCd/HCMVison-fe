@@ -72,7 +72,7 @@ export default function AppTabs() {
           {isDesktop ? <DesktopTabButton>Tuyến đường</DesktopTabButton> : <MobileTabButton icon="directions_car">Tuyến đường</MobileTabButton>}
         </TabTrigger>
 
-        <TabTrigger name="status" href="/(tabs)/status" asChild>
+        <TabTrigger name="system-status" href="/(tabs)/system-status" asChild>
           {isDesktop ? <DesktopTabButton>Tình trạng</DesktopTabButton> : <MobileTabButton icon="videocam">Tình trạng</MobileTabButton>}
         </TabTrigger>
 
