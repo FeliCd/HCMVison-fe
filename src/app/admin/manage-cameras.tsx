@@ -14,17 +14,21 @@ export default function ManageCamerasScreen() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    getCameras(undefined, 1, 50);
+    getCameras(undefined, 1, 200);
   }, [getCameras]);
 
   const handleSearch = (text: string) => {
     setSearchText(text);
-    if (text.trim().length >= 2) {
-      getCameras(text.trim(), 1, 50);
-    } else if (text.trim().length === 0) {
-      getCameras(undefined, 1, 50);
-    }
   };
+
+  const filteredCameras = cameras.filter((camera) => {
+    if (!searchText) return true;
+    const query = searchText.toLowerCase();
+    const nameMatch = camera.name ? camera.name.toLowerCase().includes(query) : false;
+    const wardMatch = camera.wardName ? camera.wardName.toLowerCase().includes(query) : false;
+    const idMatch = camera.id ? camera.id.toLowerCase().includes(query) : false;
+    return nameMatch || wardMatch || idMatch;
+  });
 
   const handleRunAiTest = async (camera: Camera) => {
     setActionLoading(camera.id);
@@ -100,10 +104,10 @@ export default function ManageCamerasScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {cameras.length === 0 ? (
+          {filteredCameras.length === 0 ? (
             <Text style={styles.emptyText}>Không tìm thấy camera nào</Text>
           ) : (
-            cameras.map((camera) => (
+            filteredCameras.map((camera) => (
               <View key={camera.id} style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cameraId}>#{camera.id}</Text>

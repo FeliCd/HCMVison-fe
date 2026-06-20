@@ -9,7 +9,9 @@ import {
   Text,
   TextInput,
   View,
+  Modal,
 } from 'react-native';
+import CameraDetailContent from '@/components/camera-detail-content';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -119,6 +121,16 @@ const mapHtml = (isDark: boolean) => `
                 var customIcon = L.divIcon({className: 'custom-icon', html: iconHtml});
                 var marker = L.marker([loc.lat, loc.lng], {icon: customIcon}).addTo(map);
                 marker.bindPopup("<b>" + loc.name + "</b><br>" + loc.status);
+
+                marker.on('click', function() {
+                    var msg = { type: 'MARKER_CLICKED', id: loc.id, name: loc.name };
+                    if (window.ReactNativeWebView) {
+                        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+                    } else {
+                        window.parent.postMessage(msg, '*');
+                    }
+                });
+
                 window.activeMarkers.push(marker);
                 window.markerMap[loc.id] = marker;
             });
@@ -163,6 +175,21 @@ export default function TabTwoScreen() {
   const [suggestions, setSuggestions] = useState<MapLocation[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locations, setLocations] = useState<MapLocation[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
+  const [selectedCameraName, setSelectedCameraName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleWebMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'MARKER_CLICKED') {
+          setSelectedCameraId(event.data.id);
+          setSelectedCameraName(event.data.name);
+        }
+      };
+      window.addEventListener('message', handleWebMessage);
+      return () => window.removeEventListener('message', handleWebMessage);
+    }
+  }, []);
 
   const { logs, getWeatherLogs } = useWeather();
   const { cameras, getCameras } = useCamera();
@@ -328,6 +355,17 @@ export default function TabTwoScreen() {
           scrollEnabled={false}
           bounces={false}
           onLoadEnd={syncMarkers}
+          onMessage={(event) => {
+            try {
+              const data = JSON.parse(event.nativeEvent.data);
+              if (data.type === 'MARKER_CLICKED') {
+                setSelectedCameraId(data.id);
+                setSelectedCameraName(data.name);
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }}
         />
       )}
 
@@ -456,6 +494,26 @@ export default function TabTwoScreen() {
           <Text style={[styles.infoPanelSubtitle, { color: colors.textMuted }]}>Nguồn: Cổng TTGT TP.HCM</Text>
         </View>
       </View>
+
+      {selectedCameraId && (
+        <Modal
+          visible={selectedCameraId !== null}
+          animationType="slide"
+          onRequestClose={() => {
+            setSelectedCameraId(null);
+            setSelectedCameraName(null);
+          }}
+        >
+          <CameraDetailContent
+            id={selectedCameraId}
+            name={selectedCameraName || undefined}
+            onClose={() => {
+              setSelectedCameraId(null);
+              setSelectedCameraName(null);
+            }}
+          />
+        </Modal>
+      )}
     </View>
   );
 }

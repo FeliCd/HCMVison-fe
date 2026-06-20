@@ -5,9 +5,9 @@
  * Usage: node cors-proxy.js
  * Then set EXPO_PUBLIC_API_URL=http://localhost:3001/api in .env.local (for web only)
  */
+/* global Buffer */
 const http = require('http');
 const https = require('https');
-const { URL } = require('url');
 
 const TARGET_HOST = 'hcmvision-api.onrender.com';
 const PROXY_PORT = 3001;

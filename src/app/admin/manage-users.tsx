@@ -17,10 +17,10 @@ export default function ManageUsersScreen() {
     fetchUsers();
   }, []);
 
-  const fetchUsers = async (search?: string) => {
+  const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.getUsers(search, 'newest', 1, 30);
+      const res = await apiClient.getUsers(undefined, 'newest', 1, 200);
       const data = res.data;
       const list: AdminUser[] = Array.isArray(data)
         ? data
@@ -35,10 +35,15 @@ export default function ManageUsersScreen() {
 
   const handleSearch = (text: string) => {
     setSearchText(text);
-    if (text.trim().length >= 2 || text.trim().length === 0) {
-      fetchUsers(text.trim() || undefined);
-    }
   };
+
+  const filteredUsers = users.filter((user) => {
+    if (!searchText) return true;
+    const query = searchText.toLowerCase();
+    const usernameMatch = user.username ? user.username.toLowerCase().includes(query) : false;
+    const emailMatch = user.email ? user.email.toLowerCase().includes(query) : false;
+    return usernameMatch || emailMatch;
+  });
 
   const handleBan = async (user: AdminUser) => {
     if (user.status === 'Banned') {
@@ -104,10 +109,10 @@ export default function ManageUsersScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {users.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <Text style={styles.emptyText}>Không tìm thấy người dùng nào</Text>
           ) : (
-            users.map((user) => (
+            filteredUsers.map((user) => (
               <View key={user.id} style={styles.userCard}>
                 <View style={[styles.avatar, { backgroundColor: user.status === 'Banned' ? 'rgba(255,180,171,0.2)' : 'rgba(0, 242, 234, 0.15)' }]}>
                   <Text style={[styles.avatarText, { color: user.status === 'Banned' ? '#ffb4ab' : '#00f2ea' }]}>
