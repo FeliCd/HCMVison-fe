@@ -7,7 +7,6 @@ import {
   Pressable,
   ScrollView,
   Platform,
-  useWindowDimensions,
   Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -159,7 +158,7 @@ const mapHtml = (isDark: boolean) => `
 
 export default function AdminMapScreen() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+
   const [activeSegment, setActiveSegment] = useState<'rain' | 'traffic' | 'combine'>('rain');
   const [searchText, setSearchText] = useState('');
   const [suggestions, setSuggestions] = useState<MapLocation[]>([]);
@@ -175,7 +174,7 @@ export default function AdminMapScreen() {
   useEffect(() => {
     getWeatherLogs(60, 500);
     getCameras(undefined, 1, 1000);
-  }, []);
+  }, [getWeatherLogs, getCameras]);
 
   useEffect(() => {
     const latestLogsMap = new Map<string, WeatherLog>();
@@ -223,7 +222,7 @@ export default function AdminMapScreen() {
       -1,
       true
     );
-  }, []);
+  }, [dotOpacity]);
   const pulseDotStyle = useAnimatedStyle(() => ({
     opacity: dotOpacity.value,
   }));
@@ -233,7 +232,7 @@ export default function AdminMapScreen() {
     transform: [{ scale: locScale.value }],
   }));
 
-  const syncMarkers = () => {
+  const syncMarkers = useCallback(() => {
     const filtered = locations.filter(loc => {
       if (activeSegment === 'combine') return true;
       return loc.type === activeSegment || loc.type === 'combine';
@@ -250,11 +249,11 @@ export default function AdminMapScreen() {
         true;
       `);
     }
-  };
+  }, [locations, activeSegment]);
 
   useEffect(() => {
     syncMarkers();
-  }, [activeSegment, locations]);
+  }, [syncMarkers]);
 
   const handleSearchChange = (text: string) => {
     setSearchText(text);
@@ -308,6 +307,7 @@ export default function AdminMapScreen() {
         `);
       }
     } catch (e) {
+      console.error('Failed to get location:', e);
       alert('Không thể lấy vị trí hiện tại.');
     }
   };

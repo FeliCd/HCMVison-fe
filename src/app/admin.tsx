@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName } from '@/components/icons';
 import { router } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function AdminDashboardScreen() {

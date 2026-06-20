@@ -8,7 +8,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  Easing,
 } from 'react-native-reanimated';
 
 import { Icon, IconName } from '@/components/icons';

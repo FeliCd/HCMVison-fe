@@ -176,23 +176,23 @@ export interface CheckRouteResponse {
     warningCount: number;
     destinationRainHits: number;
     rainingCameraCountLast30m: number;
-    warnings: Array<{
+    warnings: {
       lat: number;
       lng: number;
       cameraId?: string;
       message: string;
       rainLevel?: string;
       trafficLevel?: string;
-    }>;
+    }[];
   };
 }
 
 export interface HeatmapData {
-  points: Array<{
+  points: {
     lat: number;
     lng: number;
     intensity: number;
-  }>;
+  }[];
   timestamp: string;
 }
 

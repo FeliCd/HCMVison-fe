@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 
 export default function AddSubscriptionScreen() {
   const insets = useSafeAreaInsets();

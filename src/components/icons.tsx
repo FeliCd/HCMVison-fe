@@ -55,7 +55,10 @@ export type IconName =
   | 'edit'
   | 'radio_button_checked'
   | 'radio_button_unchecked'
-  | 'settings_brightness';
+  | 'settings_brightness'
+  | 'view_list'
+  | 'image'
+  | 'wifi';
 
 interface IconProps {
   name: IconName;
@@ -514,6 +517,26 @@ export function Icon({ name, color = '#ffffff', size = 24, style }: IconProps) {
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
           <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
           <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'view_list':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'image':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke={color} strokeWidth={2} />
+          <Circle cx="8.5" cy="8.5" r="1.5" fill={color} />
+          <Path d="m21 15-5-5L5 21" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'wifi':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M5 13a10 10 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M2 10a15 15 0 0 1 20 0M12 20h.01" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       );
     default:

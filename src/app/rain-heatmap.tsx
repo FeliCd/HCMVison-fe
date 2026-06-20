@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Icon } from '@/components/icons';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 
 const heatmapHtml = `
 <!DOCTYPE html>

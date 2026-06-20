@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TextInput, Pressable, ActivityIndicator, Keyboa
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Icon } from '@/components/icons';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function ChangePasswordScreen() {

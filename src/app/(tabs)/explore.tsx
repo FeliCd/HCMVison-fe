@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Keyboard,
   Platform,
@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, {
@@ -158,7 +157,7 @@ const mapHtml = (isDark: boolean) => `
 
 export default function TabTwoScreen() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+
   const [activeSegment, setActiveSegment] = useState<'rain' | 'traffic' | 'combine'>('rain');
   const [searchText, setSearchText] = useState('');
   const [suggestions, setSuggestions] = useState<MapLocation[]>([]);
@@ -174,7 +173,7 @@ export default function TabTwoScreen() {
   useEffect(() => {
     getWeatherLogs(60, 500);
     getCameras(undefined, 1, 1000);
-  }, []);
+  }, [getWeatherLogs, getCameras]);
 
   useEffect(() => {
     const latestLogsMap = new Map<string, WeatherLog>();
@@ -222,7 +221,7 @@ export default function TabTwoScreen() {
       -1,
       true
     );
-  }, []);
+  }, [dotOpacity]);
   const pulseDotStyle = useAnimatedStyle(() => ({
     opacity: dotOpacity.value,
   }));
@@ -232,7 +231,7 @@ export default function TabTwoScreen() {
     transform: [{ scale: locScale.value }],
   }));
 
-  const syncMarkers = () => {
+  const syncMarkers = useCallback(() => {
     const filtered = locations.filter(loc => {
       if (activeSegment === 'combine') return true;
       return loc.type === activeSegment || loc.type === 'combine';
@@ -249,11 +248,11 @@ export default function TabTwoScreen() {
         true;
       `);
     }
-  };
+  }, [locations, activeSegment]);
 
   useEffect(() => {
     syncMarkers();
-  }, [activeSegment, locations]);
+  }, [syncMarkers]);
 
   const handleSearchChange = (text: string) => {
     setSearchText(text);
@@ -307,6 +306,7 @@ export default function TabTwoScreen() {
         `);
       }
     } catch (e) {
+      console.error('Failed to get location:', e);
       alert('Không thể lấy vị trí hiện tại.');
     }
   };

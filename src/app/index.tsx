@@ -33,7 +33,7 @@ export default function HomeScreen() {
       -1,
       false
     );
-  }, []);
+  }, [glowPulse]);
 
   const buttonAnimatedStyle = useAnimatedStyle(() => {
     return {

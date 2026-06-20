@@ -256,7 +256,7 @@ class ApiClient {
     originLongitude?: number;
     destinationLatitude?: number;
     destinationLongitude?: number;
-    routePoints?: Array<{ lat: number; lng: number }>;
+    routePoints?: { lat: number; lng: number }[];
   }) {
     return this.client.post('/Weather/check-route', data);
   }
@@ -435,4 +435,3 @@ class ApiClient {
 
 // Export singleton instance
 export const apiClient = new ApiClient();
-export default apiClient;

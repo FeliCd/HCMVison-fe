@@ -12,7 +12,7 @@ export default function TrafficListScreen() {
 
   useEffect(() => {
     getWeatherLogs(60, 200);
-  }, []);
+  }, [getWeatherLogs]);
 
   // Lọc unique camera (lấy log mới nhất cho mỗi camera) và chỉ lấy kẹt xe
   const latestPerCamera = new Map<string, typeof logs[0]>();

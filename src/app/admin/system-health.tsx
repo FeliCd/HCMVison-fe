@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator } from
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 import { FailedCamera } from '@/types/api';
 
 interface HealthData {
@@ -13,13 +13,13 @@ interface HealthData {
     Inactive?: number;
     Offline?: number;
   };
-  cameras?: Array<{
+  cameras?: {
     cameraId: string;
     cameraName: string;
     status: string;
     uptime?: number;
     lastSeen?: string;
-  }>;
+  }[];
 }
 
 export default function SystemHealthScreen() {

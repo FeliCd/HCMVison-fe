@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Pressable, ScrollView, TextInput, ActivityIndic
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 import { AdminUser } from '@/types/api';
 
 export default function ManageUsersScreen() {

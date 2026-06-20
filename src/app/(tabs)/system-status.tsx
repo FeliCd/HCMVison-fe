@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
 import { useWeather } from '@/hooks/useWeather';
@@ -23,7 +23,7 @@ export default function StatusScreen() {
     getRainingCameras(30);
     getWeatherLogs(60, 20);
     getCameras(undefined, 1, 100);
-  }, []);
+  }, [getCameras, getRainingCameras, getWeatherLogs]);
 
   // Đếm điểm kẹt xe từ weather logs
   const congestedCount = logs.filter(

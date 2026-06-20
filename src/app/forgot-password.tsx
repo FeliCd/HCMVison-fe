@@ -20,7 +20,7 @@ import Animated, {
   BounceIn,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 

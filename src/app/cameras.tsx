@@ -13,7 +13,7 @@ export default function CamerasScreen() {
 
   useEffect(() => {
     getCameras(undefined, 1, 20);
-  }, []);
+  }, [getCameras]);
 
   const handleSearch = useCallback((text: string) => {
     setSearchText(text);

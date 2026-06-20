@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TextInput, Pressable, ScrollView, KeyboardAvoid
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 
 interface Message {
@@ -59,6 +59,7 @@ export default function ChatbotScreen() {
       };
       setMessages(prev => [...prev, botMsg]);
     } catch (e) {
+      console.error('Chatbot request failed:', e);
       setMessages(prev => [...prev, {
         id: Date.now().toString() + '_e',
         role: 'assistant',

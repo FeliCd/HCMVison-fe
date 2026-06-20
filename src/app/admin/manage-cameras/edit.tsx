@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Pla
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 
 export default function EditCameraScreen() {
   const insets = useSafeAreaInsets();

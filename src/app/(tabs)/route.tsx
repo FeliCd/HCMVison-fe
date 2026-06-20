@@ -16,7 +16,7 @@ import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 
 import { Icon } from '@/components/icons';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 import { useTheme } from '@/hooks/useTheme';
 
 interface RouteData {

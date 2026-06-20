@@ -11,7 +11,7 @@ export default function WarningScreen() {
 
   useEffect(() => {
     getWeatherLogs(180, 50);
-  }, []);
+  }, [getWeatherLogs]);
 
   // Lọc heavy rain / traffic jam làm cảnh báo
   const urgentItems = logs.filter(
@@ -21,8 +21,7 @@ export default function WarningScreen() {
     (l) => (l.isRaining && l.rainLevel !== 'heavy') || l.trafficLevel === 'slow'
   ).slice(0, 5);
 
-  const getRainIcon = (rainLevel: string) =>
-    rainLevel === 'heavy' ? 'rainy' : 'rainy';
+
 
   const formatTime = (timeAgo: string) => timeAgo || 'Vừa xong';
 

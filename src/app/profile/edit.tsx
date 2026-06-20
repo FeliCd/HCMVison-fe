@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function EditProfileScreen() {
@@ -35,6 +35,7 @@ export default function EditProfileScreen() {
       setSuccessMsg('Cập nhật thông tin thành công');
       setTimeout(() => router.back(), 1500);
     } catch (err: any) {
+      console.error('Failed to update profile:', err);
       setErrorMsg('Đã có lỗi xảy ra. Vui lòng thử lại.');
     } finally {
       setLoading(false);

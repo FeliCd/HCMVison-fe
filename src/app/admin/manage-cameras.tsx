@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, IconName } from '@/components/icons';
 import { useCamera } from '@/hooks/useCamera';
 import { Camera } from '@/types/api';
-import apiClient from '@/services/api';
+import { apiClient } from '@/services/api';
 
 export default function ManageCamerasScreen() {
   const insets = useSafeAreaInsets();
@@ -15,7 +15,7 @@ export default function ManageCamerasScreen() {
 
   useEffect(() => {
     getCameras(undefined, 1, 50);
-  }, []);
+  }, [getCameras]);
 
   const handleSearch = (text: string) => {
     setSearchText(text);

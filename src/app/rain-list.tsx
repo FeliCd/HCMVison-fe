@@ -12,7 +12,7 @@ export default function RainListScreen() {
 
   useEffect(() => {
     getRainingCameras(60);
-  }, []);
+  }, [getRainingCameras]);
 
   // Phân loại theo mức độ mưa
   const heavyRain = rainingCameras.filter(c => c.rainLevel === 'heavy');
