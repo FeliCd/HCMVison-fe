@@ -1,11 +1,10 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon, IconName } from '@/components/icons';
-import { router } from 'expo-router';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();

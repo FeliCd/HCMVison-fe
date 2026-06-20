@@ -1,25 +1,25 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-import { Link, router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  FadeInUp,
-} from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
+import { Link, router } from 'expo-router';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import Animated, {
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -187,8 +187,8 @@ export default function RegisterScreen() {
               style={[styles.registerButton, btnStyle, isLoading && styles.registerButtonDisabled]}
               onPressIn={() => { if (!isLoading) btnScale.value = withSpring(0.95, { damping: 12 }); }}
               onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
-              onPress={handleRegister}
               disabled={isLoading}
+              onPress={handleRegister}
             >
               {isLoading ? (
                 <ActivityIndicator color="#003735" size="small" />

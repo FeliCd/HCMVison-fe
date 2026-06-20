@@ -19,6 +19,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.HCMVision",
+      "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
           "apiKey": "DUMMY_API_KEY_PLEASE_CHANGE_ME"

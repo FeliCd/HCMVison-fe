@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "22612884702",
+    "project_id": "mma-final-project-f847f",
+    "storage_bucket": "mma-final-project-f847f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:22612884702:android:e065849b7a38ea4e1d964f",
+        "android_client_info": {
+          "package_name": "com.anonymous.HCMVision"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-fF_jDy5B4exYjNvfNmObv-Jb3UZ5lyY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

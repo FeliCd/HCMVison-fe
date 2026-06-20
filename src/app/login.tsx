@@ -1,25 +1,25 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-import { Link } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  FadeInUp,
-} from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
+import { Link } from 'expo-router';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import Animated, {
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -142,8 +142,8 @@ export default function LoginScreen() {
               style={[styles.loginButton, btnStyle, isLoading && styles.loginButtonDisabled]}
               onPressIn={() => { if (!isLoading) btnScale.value = withSpring(0.95, { damping: 12 }); }}
               onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
-              onPress={handleLogin}
               disabled={isLoading}
+              onPress={handleLogin}
             >
               {isLoading ? (
                 <ActivityIndicator color="#003735" size="small" />
@@ -151,6 +151,7 @@ export default function LoginScreen() {
                 <Text style={styles.loginButtonText}>Đăng nhập</Text>
               )}
             </AnimatedPressable>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
 
           {/* Secondary Actions */}

@@ -1,31 +1,31 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import * as Location from 'expo-location';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
+  Platform,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
-  Pressable,
-  ScrollView,
-  Platform,
   useWindowDimensions,
-  Keyboard,
+  View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  withSpring,
   Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import * as Location from 'expo-location';
 
 import { Icon } from '@/components/icons';
-import { useWeather } from '@/hooks/useWeather';
 import { useCamera } from '@/hooks/useCamera';
 import { useTheme } from '@/hooks/useTheme';
+import { useWeather } from '@/hooks/useWeather';
 import { WeatherLog } from '@/types/api';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -238,7 +238,7 @@ export default function TabTwoScreen() {
       return loc.type === activeSegment || loc.type === 'combine';
     });
     const locsString = JSON.stringify(filtered).replace(/'/g, "\\\\'");
-    
+
     if (Platform.OS === 'web') {
       iframeRef.current?.contentWindow?.postMessage({ type: 'SYNC_MARKERS', data: locsString }, '*');
     } else {
@@ -275,7 +275,7 @@ export default function TabTwoScreen() {
     setSearchText(loc.name);
     setShowSuggestions(false);
     Keyboard.dismiss();
-    
+
     if (Platform.OS === 'web') {
       iframeRef.current?.contentWindow?.postMessage({ type: 'FOCUS_LOCATION', id: loc.id, lat: loc.lat, lng: loc.lng, zoom: 15 }, '*');
     } else {

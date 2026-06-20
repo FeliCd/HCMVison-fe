@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/hooks/useTheme';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
   return (
     <ThemeProvider>
       <AuthProvider>

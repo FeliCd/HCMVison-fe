@@ -127,6 +127,21 @@ class ApiClient {
     });
   }
 
+  // ==================== DEVICE TOKEN ENDPOINTS ====================
+
+  async saveDeviceToken(data: {
+    fcmToken: string;
+    deviceId: string;
+    platform?: string;
+    appVersion?: string;
+  }) {
+    return this.client.post('/device-tokens', data);
+  }
+
+  async deleteDeviceToken(data: { fcmToken: string }) {
+    return this.client.delete('/device-tokens', { data });
+  }
+
   // ==================== CAMERA ENDPOINTS ====================
 
   async getCameras(
