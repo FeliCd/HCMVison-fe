@@ -24,6 +24,7 @@ const noopSubscription: RemovableSubscription = {
 };
 
 const isExpoGo = Constants.appOwnership === 'expo';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const Notifications = (Platform.OS !== 'web' && !isExpoGo) ? require('expo-notifications') : null;
 
 if (Notifications) {
@@ -175,7 +176,7 @@ export function addPushTokenRefreshListener(): RemovableSubscription {
   }
 
   try {
-    return Notifications.addPushTokenListener((token) => {
+    return Notifications.addPushTokenListener((token: NotificationsType.DevicePushToken) => {
       const fcmToken = getNativeTokenString(token);
       if (!fcmToken) {
         return;
@@ -248,7 +249,7 @@ export function addNotificationTapListener(): RemovableSubscription {
   handleNotificationResponse(getLastNotificationResponseSafely());
 
   try {
-    return Notifications.addNotificationResponseReceivedListener((response) => {
+    return Notifications.addNotificationResponseReceivedListener((response: NotificationsType.NotificationResponse) => {
       handleNotificationResponse(response);
     });
   } catch (error) {
