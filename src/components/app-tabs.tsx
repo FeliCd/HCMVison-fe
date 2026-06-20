@@ -37,7 +37,7 @@ function TabButton({ route, isFocused, onPress, label }: any) {
   let iconName: IconName = 'map';
   if (route.name === 'explore') iconName = 'map';
   else if (route.name === 'route') iconName = 'directions_car';
-  else if (route.name === 'status') iconName = 'videocam';
+  else if (route.name === 'system-status') iconName = 'videocam';
   else if (route.name === 'warning') iconName = 'notifications';
   else if (route.name === 'more') iconName = 'menu';
 
@@ -126,7 +126,7 @@ export default function AppTabs() {
         }}
       />
       <Tabs.Screen
-        name="status"
+        name="system-status"
         options={{
           title: 'Tình trạng',
         }}

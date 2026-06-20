@@ -5,9 +5,11 @@ import { Icon, IconName } from '@/components/icons';
 import { router } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import apiClient from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AdminDashboardScreen() {
   const insets = useSafeAreaInsets();
+  const { logout } = useAuth();
   
   // States for real data
   const [isLoading, setIsLoading] = useState(true);
@@ -77,12 +79,17 @@ export default function AdminDashboardScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
-        <Pressable onPress={() => router.back()} style={styles.headerButton}>
-          <Icon name="arrow_back" color="#d4e4fa" size={24} />
-        </Pressable>
-        <Text style={styles.headerTitle}>ADMIN DASHBOARD</Text>
         <Pressable style={styles.headerButton} onPress={fetchData}>
           <Icon name="refresh" color="#d4e4fa" size={24} />
+        </Pressable>
+        <Text style={styles.headerTitle}>ADMIN DASHBOARD</Text>
+        <Pressable onPress={() => {
+            Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
+              { text: 'Huỷ', style: 'cancel' },
+              { text: 'Đăng xuất', style: 'destructive', onPress: logout }
+            ]);
+          }} style={styles.headerButton}>
+          <Icon name="logout" color="#fca5a5" size={24} />
         </Pressable>
       </View>
 
