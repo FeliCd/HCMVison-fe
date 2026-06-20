@@ -118,10 +118,6 @@ export default function StatusScreen() {
                         {viewMode === 'grid' && <Text style={styles.newImagePlaceholderText}>IMAGE NOT AVAILABLE</Text>}
                       </View>
                       
-                      <View style={styles.liveBadge}>
-                        <View style={styles.liveDot} />
-                        <Text style={styles.liveText}>LIVE</Text>
-                      </View>
                       
                       <View style={styles.onlineBadge}>
                         <View style={[styles.statusDot, { backgroundColor: isOnline ? '#22c55e' : '#f43f5e' }]} />
