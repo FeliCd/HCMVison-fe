@@ -3,20 +3,24 @@ import axios, { AxiosError, AxiosInstance } from 'axios';
 
 import { Platform } from 'react-native';
 
-const DEFAULT_API_URL = 'https://hcmvision-api.onrender.com/api';
-const RAW_API_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_URL;
 
-const normalizeApiBaseUrl = (url: string) => {
-  const trimmedUrl = url.trim().replace(/\/+$/, '');
-  const emulatorSafeUrl =
-    Platform.OS === 'android' && trimmedUrl.includes('localhost')
-      ? trimmedUrl.replace('localhost', '10.0.2.2')
-      : trimmedUrl;
-
-  return emulatorSafeUrl.endsWith('/api') ? emulatorSafeUrl : `${emulatorSafeUrl}/api`;
+const getApiBaseUrl = () => {
+  let url = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5057/api';
+  
+  // Handle Android Emulator localhost issue
+  if (Platform.OS === 'android' && url.includes('localhost')) {
+    url = url.replace('localhost', '10.0.2.2');
+  }
+  
+  // Ensure it ends with /api
+  if (!url.endsWith('/api') && !url.endsWith('/api/')) {
+    url = url.replace(/\/$/, '') + '/api';
+  }
+  
+  return url;
 };
 
-const API_BASE_URL = normalizeApiBaseUrl(RAW_API_URL);
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiClient {
   private readonly client: AxiosInstance;
