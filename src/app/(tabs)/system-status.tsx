@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator, useWindowDimensions, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -14,6 +14,7 @@ export default function StatusScreen() {
   const { rainingCameras, logs, loading, error, getRainingCameras, getWeatherLogs } = useWeather();
   const { cameras, getCameras, loading: camerasLoading } = useCamera();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchText, setSearchText] = useState('');
 
   const numColumns = width >= 768 ? 4 : 1;
   const gap = 16;
@@ -31,6 +32,16 @@ export default function StatusScreen() {
   ).length;
 
   const rainingCount = rainingCameras.length;
+
+  // Lọc camera không phân biệt chữ hoa / chữ thường
+  const filteredCameras = cameras.filter((cam) => {
+    if (!searchText) return true;
+    const query = searchText.toLowerCase();
+    const nameMatch = cam.name ? cam.name.toLowerCase().includes(query) : false;
+    const wardMatch = cam.wardName ? cam.wardName.toLowerCase().includes(query) : false;
+    const idMatch = cam.id ? cam.id.toLowerCase().includes(query) : false;
+    return nameMatch || wardMatch || idMatch;
+  });
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
@@ -66,9 +77,27 @@ export default function StatusScreen() {
           </View>
         </Animated.View>
 
+        {/* Search Bar */}
+        <Animated.View entering={FadeInUp.duration(500).delay(150)} style={styles.searchContainer}>
+          <Icon name="search" color="#94a3b8" size={20} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm camera theo tên, tuyến đường..."
+            placeholderTextColor="#64748b"
+            value={searchText}
+            onChangeText={setSearchText}
+            autoCorrect={false}
+          />
+          {searchText ? (
+            <Pressable onPress={() => setSearchText('')} style={styles.clearSearchBtn}>
+              <Icon name="close" color="#94a3b8" size={18} />
+            </Pressable>
+          ) : null}
+        </Animated.View>
+
         <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>
-            Camera đang theo dõi ({cameras.length})
+            Camera đang theo dõi ({filteredCameras.length})
           </Text>
           <View style={styles.viewModeToggle}>
             <Pressable 
@@ -96,14 +125,14 @@ export default function StatusScreen() {
             <ActivityIndicator size="large" color="#00f2ea" />
             <Text style={styles.loadingText}>Đang tải dữ liệu camera...</Text>
           </View>
-        ) : cameras.length === 0 ? (
+        ) : filteredCameras.length === 0 ? (
           <View style={styles.emptyBox}>
             <Icon name="videocam" color="#64748b" size={40} />
-            <Text style={styles.emptyText}>Chưa có camera nào trong hệ thống</Text>
+            <Text style={styles.emptyText}>Không tìm thấy camera phù hợp</Text>
           </View>
         ) : (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
-            {cameras.map((cam, idx) => {
+            {filteredCameras.map((cam, idx) => {
               const isOnline = cam.status === 'Active';
               
               return (
@@ -373,5 +402,27 @@ const styles = StyleSheet.create({
   newCameraIdText: {
     fontSize: 11,
     color: '#cbd5e1',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(25, 30, 40, 0.55)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 14,
+    height: 48,
+    marginBottom: 20,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#d4e4fa',
+    fontSize: 14,
+    marginLeft: 10,
+    height: '100%',
+    padding: 0,
+  },
+  clearSearchBtn: {
+    padding: 4,
   },
 });
