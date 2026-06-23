@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function MoreScreen() {
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const { colors, theme } = useTheme();
 
   const displayName = user?.fullName || user?.username || 'Người dùng';
@@ -43,8 +43,26 @@ export default function MoreScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
-        {/* Profile Section */}
-        <Animated.View entering={FadeInUp.duration(500)} style={[styles.profileSection, dynamicStyles.card]}>
+        {!isAuthenticated ? (
+          <Animated.View entering={FadeInUp.duration(500)} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 }}>
+            <Icon name="account_circle" size={80} color={colors.textMuted} />
+            <Text style={[styles.profileName, dynamicStyles.text, { marginTop: 24, marginBottom: 12, textAlign: 'center', fontSize: 20 }]}>
+              Bạn chưa đăng nhập
+            </Text>
+            <Text style={[styles.profileEmail, dynamicStyles.textMuted, { textAlign: 'center', marginBottom: 32, fontSize: 14, lineHeight: 22 }]}>
+              Đăng nhập để xem lịch sử tìm kiếm, nhận cảnh báo cá nhân hóa và quản lý tài khoản.
+            </Text>
+            <Pressable 
+              style={[styles.logoutButton, { backgroundColor: colors.primary, borderColor: colors.primary, width: '100%', paddingVertical: 14 }]} 
+              onPress={() => router.push('/login')}
+            >
+              <Text style={[styles.logoutText, { color: '#ffffff', textAlign: 'center' }]}>Đăng nhập</Text>
+            </Pressable>
+          </Animated.View>
+        ) : (
+          <>
+            {/* Profile Section */}
+            <Animated.View entering={FadeInUp.duration(500)} style={[styles.profileSection, dynamicStyles.card]}>
           <View style={styles.avatarContainer}>
             <View style={[styles.avatarCircle, { backgroundColor: colors.successMuted, borderColor: colors.primary }]}>
               <Text style={[styles.avatarLetter, { color: colors.primary }]}>{avatarLetter}</Text>
@@ -106,6 +124,8 @@ export default function MoreScreen() {
         </Animated.View>
 
         <View style={{ height: 100 }} />
+          </>
+        )}
       </ScrollView>
     </View>
   );

@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Icon, IconName } from '@/components/icons';
+import { useAuth } from '@/hooks/useAuth';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -74,6 +75,11 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
       <View style={styles.tabBarContent}>
         {state.routes.map((route: any, index: number) => {
           const { options } = descriptors[route.key];
+          
+          if (options.href === null) {
+            return null;
+          }
+
           const label = options.title !== undefined ? options.title : route.name;
           const isFocused = state.index === index;
 
@@ -105,6 +111,8 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 }
 
 export default function AppTabs() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
@@ -134,6 +142,7 @@ export default function AppTabs() {
         name="warning"
         options={{
           title: 'Cảnh báo',
+          href: isAuthenticated ? undefined : null,
         }}
       />
       <Tabs.Screen
