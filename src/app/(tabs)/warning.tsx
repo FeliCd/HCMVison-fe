@@ -4,10 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
 import { useWeather } from '@/hooks/useWeather';
+import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
+import { router } from 'expo-router';
 
 export default function WarningScreen() {
   const insets = useSafeAreaInsets();
   const { logs, loading, error, getWeatherLogs } = useWeather();
+  const { isAuthenticated } = useAuth();
+  const { colors } = useTheme();
 
   useEffect(() => {
     getWeatherLogs(180, 50);
@@ -31,7 +36,23 @@ export default function WarningScreen() {
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 100 }}>
 
-        {loading && logs.length === 0 ? (
+        {!isAuthenticated ? (
+          <Animated.View entering={FadeInUp.duration(500)} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 }}>
+            <Icon name="warning" size={80} color={colors.textMuted} />
+            <Text style={{ marginTop: 24, marginBottom: 12, textAlign: 'center', fontSize: 20, fontWeight: '700', color: colors.text }}>
+              Bạn chưa đăng nhập
+            </Text>
+            <Text style={{ textAlign: 'center', marginBottom: 32, fontSize: 14, lineHeight: 22, color: colors.textMuted }}>
+              Đăng nhập để xem các cảnh báo giao thông và thời tiết quan trọng xung quanh bạn.
+            </Text>
+            <Pressable 
+              style={{ backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, width: '100%' }} 
+              onPress={() => router.push('/login')}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#ffffff', textAlign: 'center' }}>Đăng nhập</Text>
+            </Pressable>
+          </Animated.View>
+        ) : loading && logs.length === 0 ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color="#ffb4ab" />
             <Text style={styles.loadingText}>Đang tải cảnh báo...</Text>
