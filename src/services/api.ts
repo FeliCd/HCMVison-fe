@@ -2,7 +2,87 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError, AxiosInstance } from 'axios';
 
 import { Platform } from 'react-native';
+import type { District, Ward } from '@/types/api';
 
+type RawDistrict = string | (Partial<District> & { districtId?: string; districtName?: string });
+type RawWard = Partial<Ward> & { wardId?: string; wardName?: string; alias?: string };
+
+function toArray<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[];
+  }
+
+  const value = payload as any;
+  if (Array.isArray(value?.data)) {
+    return value.data as T[];
+  }
+
+  if (Array.isArray(value?.items)) {
+    return value.items as T[];
+  }
+
+  if (Array.isArray(value?.data?.items)) {
+    return value.data.items as T[];
+  }
+
+  if (Array.isArray(value?.value)) {
+    return value.value as T[];
+  }
+
+  if (payload && typeof payload === 'object') {
+    return [payload as T];
+  }
+
+  return [];
+}
+
+function getString(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : '';
+}
+
+function normalizeDistricts(payload: unknown): District[] {
+  return toArray<RawDistrict>(payload)
+    .map((district) => {
+      if (typeof district === 'string') {
+        const name = district.trim();
+        return name ? { id: name, name, latitude: 0, longitude: 0 } : null;
+      }
+
+      const name = getString(district.name) || getString(district.districtName);
+      const id = getString(district.id) || getString(district.districtId) || name;
+
+      return id && name
+        ? {
+            id,
+            name,
+            latitude: typeof district.latitude === 'number' ? district.latitude : 0,
+            longitude: typeof district.longitude === 'number' ? district.longitude : 0,
+          }
+        : null;
+    })
+    .filter((district): district is District => Boolean(district));
+}
+
+function normalizeWards(payload: unknown): Ward[] {
+  return toArray<RawWard>(payload)
+    .map((ward) => {
+      const id = getString(ward.id) || getString(ward.wardId);
+      const name = getString(ward.name) || getString(ward.wardName);
+      const districtName = getString(ward.districtName);
+
+      return id && name
+        ? {
+            id,
+            name,
+            districtId: getString(ward.districtId) || districtName,
+            districtName,
+            latitude: typeof ward.latitude === 'number' ? ward.latitude : 0,
+            longitude: typeof ward.longitude === 'number' ? ward.longitude : 0,
+          }
+        : null;
+    })
+    .filter((ward): ward is Ward => Boolean(ward));
+}
 
 const getApiBaseUrl = () => {
   let url = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5057/api';
@@ -280,19 +360,25 @@ class ApiClient {
   // ==================== LOCATION ENDPOINTS ====================
 
   async getWards() {
-    return this.client.get('/Location/wards');
+    const response = await this.client.get('/Location/wards');
+    return { ...response, data: normalizeWards(response.data) };
   }
 
   async getWardById(id: string) {
-    return this.client.get(`/Location/wards/${id}`);
+    const response = await this.client.get(`/Location/wards/${id}`);
+    return { ...response, data: normalizeWards(response.data)[0] || response.data };
   }
 
   async getDistricts() {
-    return this.client.get('/Location/districts');
+    const response = await this.client.get('/Location/districts');
+    return { ...response, data: normalizeDistricts(response.data) };
   }
 
   async getWardsByDistrict(districtName: string) {
-    return this.client.get(`/Location/wards/by-district/${districtName}`);
+    const response = await this.client.get(
+      `/Location/wards/by-district/${encodeURIComponent(districtName)}`
+    );
+    return { ...response, data: normalizeWards(response.data) };
   }
 
   // ==================== FAVORITE ENDPOINTS ====================
