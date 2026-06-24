@@ -28,6 +28,7 @@ import { useCamera } from '@/hooks/useCamera';
 import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
 import { WeatherLog } from '@/types/api';
+import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -57,7 +58,7 @@ function toMapLocation(log: WeatherLog): MapLocation {
     address: log.districtName || log.wardName || log.cameraId,
     lat: log.latitude,
     lng: log.longitude,
-    status: `${log.isRaining ? `Mưa ${log.rainLevel}` : 'Không mưa'} - ${log.trafficLevel}`,
+    status: `${formatRainLevel(log.rainLevel)} - ${formatTrafficLevel(log.trafficLevel)}`,
     type,
     markerColor,
   };
@@ -385,7 +386,7 @@ export default function TabTwoScreen() {
                 }
               }}
             />
-            {searchText.length > 0 ? (
+            {searchText.length > 0 && (
               <Pressable
                 style={styles.clearButton}
                 onPress={() => {
@@ -395,10 +396,6 @@ export default function TabTwoScreen() {
                 }}
               >
                 <Icon name="close" color={colors.textMuted} size={18} />
-              </Pressable>
-            ) : (
-              <Pressable style={[styles.micButton, { borderColor: colors.border }]}>
-                <Icon name="mic" color={colors.primary} size={18} />
               </Pressable>
             )}
           </View>
@@ -490,7 +487,6 @@ export default function TabTwoScreen() {
       <View style={[styles.infoPanel, { bottom: infoPanelBottom, backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
         <Animated.View style={[styles.infoPanelDot, pulseDotStyle]} />
         <View style={styles.infoPanelTextContainer}>
-          <Text style={[styles.infoPanelTitle, { color: colors.text }]}>Cập nhật 5 phút trước</Text>
           <Text style={[styles.infoPanelSubtitle, { color: colors.textMuted }]}>Nguồn: Cổng TTGT TP.HCM</Text>
         </View>
       </View>
@@ -555,14 +551,6 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: { outlineStyle: 'none' as any },
     }),
-  },
-  micButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
   },
   clearButton: {
     width: 32,
@@ -696,12 +684,7 @@ const styles = StyleSheet.create({
   infoPanelTextContainer: {
     flex: 1,
   },
-  infoPanelTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
   infoPanelSubtitle: {
     fontSize: 10,
-    marginTop: 2,
   },
 });

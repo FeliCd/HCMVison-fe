@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator, useWindowDimensions, TextInput } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -7,6 +8,8 @@ import { Icon } from '@/components/icons';
 import { useWeather } from '@/hooks/useWeather';
 import { useCamera } from '@/hooks/useCamera';
 import { router } from 'expo-router';
+import { mergeCamerasWithWeather } from '@/utils/camera-weather';
+import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
 export default function StatusScreen() {
   const insets = useSafeAreaInsets();
@@ -22,8 +25,8 @@ export default function StatusScreen() {
 
   useEffect(() => {
     getRainingCameras(30);
-    getWeatherLogs(60, 20);
-    getCameras(undefined, 1, 100);
+    getWeatherLogs(180, 500, true);
+    getCameras(undefined, 1, 1000);
   }, [getCameras, getRainingCameras, getWeatherLogs]);
 
   // Đếm điểm kẹt xe từ weather logs
@@ -34,7 +37,9 @@ export default function StatusScreen() {
   const rainingCount = rainingCameras.length;
 
   // Lọc camera không phân biệt chữ hoa / chữ thường
-  const filteredCameras = cameras.filter((cam) => {
+  const cameraCards = useMemo(() => mergeCamerasWithWeather(cameras, logs), [cameras, logs]);
+
+  const filteredCameras = cameraCards.filter((cam) => {
     if (!searchText) return true;
     const query = searchText.toLowerCase();
     const nameMatch = cam.name ? cam.name.toLowerCase().includes(query) : false;
@@ -142,19 +147,28 @@ export default function StatusScreen() {
                     onPress={() => router.push({ pathname: '/camera-detail', params: { id: cam.id, name: cam.name } })}
                   >
                     <View style={viewMode === 'grid' ? styles.newCameraImageContainer : styles.listCameraImageContainer}>
-                      <View style={styles.newImagePlaceholder}>
-                        <Icon name="image" color="#cbd5e1" size={viewMode === 'grid' ? 48 : 32} />
-                        {viewMode === 'grid' && <Text style={styles.newImagePlaceholderText}>IMAGE NOT AVAILABLE</Text>}
-                      </View>
+                      {cam.displayImageUrl ? (
+                        <Image
+                          source={{ uri: cam.displayImageUrl }}
+                          style={styles.newCameraImage}
+                          contentFit="cover"
+                          transition={180}
+                        />
+                      ) : (
+                        <View style={styles.newImagePlaceholder}>
+                          <Icon name="image" color="#cbd5e1" size={viewMode === 'grid' ? 48 : 32} />
+                          {viewMode === 'grid' && <Text style={styles.newImagePlaceholderText}>Chưa có ảnh</Text>}
+                        </View>
+                      )}
                       
                       
                       <View style={styles.onlineBadge}>
                         <View style={[styles.statusDot, { backgroundColor: isOnline ? '#22c55e' : '#f43f5e' }]} />
-                        <Text style={styles.onlineText}>{isOnline ? 'Online' : 'Offline'}</Text>
+                        <Text style={styles.onlineText}>{isOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}</Text>
                       </View>
                       
                       <View style={styles.timestampBadge}>
-                        <Text style={styles.timestampText}>{new Date().toLocaleString('vi-VN')}</Text>
+                        <Text style={styles.timestampText}>{cam.timeAgo || 'Đang theo dõi'}</Text>
                       </View>
                     </View>
                     
@@ -167,7 +181,11 @@ export default function StatusScreen() {
                         <Icon name="location_on" color="#94a3b8" size={14} />
                         <Text style={styles.newCameraLocationText} numberOfLines={1}>{cam.wardName || 'Khu vực chưa xác định'}</Text>
                       </View>
-                      <Text style={styles.newCameraIdText}>ID: {cam.id}</Text>
+                      <Text style={styles.newCameraIdText}>
+                        {cam.rainLevel
+                          ? `Mưa: ${formatRainLevel(cam.rainLevel)} • Giao thông: ${formatTrafficLevel(cam.trafficLevel)}`
+                          : `ID: ${cam.id}`}
+                      </Text>
                     </View>
                   </Pressable>
                 </Animated.View>
@@ -182,7 +200,7 @@ export default function StatusScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#051424', paddingHorizontal: 16 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#d4e4fa', marginBottom: 20, letterSpacing: -0.6 },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#d4e4fa', marginBottom: 20, letterSpacing: 0 },
   content: { flex: 1 },
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   statCard: {
@@ -297,6 +315,11 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderRightWidth: 1,
     borderRightColor: '#e2e8f0',
+  },
+  newCameraImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#e2e8f0',
   },
   newImagePlaceholder: {
     flex: 1,
