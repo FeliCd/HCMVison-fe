@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/services/api';
 import { Camera, CameraListResponse } from '@/types/api';
 
 export const useCamera = () => {
+  const queryClient = useQueryClient();
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,8 +15,13 @@ export const useCamera = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.getCameras(search, undefined, page, pageSize);
-      const data = response.data as CameraListResponse;
+      const data = await queryClient.fetchQuery({
+        queryKey: ['cameras', search || '', page, pageSize],
+        queryFn: async () => {
+          const response = await apiClient.getCameras(search, undefined, page, pageSize);
+          return response.data as CameraListResponse;
+        },
+      });
       const computedTotalPages = Math.ceil(data.total / data.pageSize) || 1;
       setCameras(append ? (prev) => [...prev, ...data.data] : data.data);
       setTotalPages(computedTotalPages);
@@ -27,7 +34,7 @@ export const useCamera = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryClient]);
 
   const createCamera = async (data: Parameters<typeof apiClient.createCamera>[0]) => {
     setLoading(true);

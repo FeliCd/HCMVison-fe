@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userData);
       
       if (userData.role === 'Admin') {
-        router.replace('/admin');
+        router.replace('/admin' as any);
       } else {
         router.replace('/(tabs)/explore');
       }

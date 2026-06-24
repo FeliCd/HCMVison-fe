@@ -265,23 +265,57 @@ export interface AdminStats {
   averageRainProbability: number;
   rainingCameras: number;
   totalReports: number;
+  totalWeatherLogs?: number;
   lastUpdateTime: string;
+  systemStatus?: string;
 }
+
+export type AdminRole = 'User' | 'Admin';
+
+export type AdminUserStatus = 'Active' | 'Banned';
 
 export interface AdminUser {
   id: number;
   username: string;
   email: string;
-  role: string;
-  status: 'Active' | 'Banned';
+  fullName?: string;
+  role: AdminRole;
+  status: AdminUserStatus;
+  isActive: boolean;
   createdAt: string;
+}
+
+export interface AdminUsersQuery {
+  search?: string;
+  sortBy?: 'newest' | 'oldest' | 'username';
+  role?: AdminRole;
+  isActive?: boolean;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface AdminUsersResponse {
   items: AdminUser[];
+  data?: AdminUser[];
   total: number;
   page: number;
   pageSize: number;
+}
+
+export interface AdminAccountAuditLog {
+  id: string;
+  actorUserId: number;
+  actorUsername: string;
+  targetUserId: number;
+  targetUsername: string;
+  action: 'RoleChanged' | 'StatusChanged' | string;
+  previousValue: string;
+  newValue: string;
+  createdAt: string;
+}
+
+export interface AdminAuditLogResponse {
+  items: AdminAccountAuditLog[];
 }
 
 export interface FailedCamera {
@@ -295,33 +329,76 @@ export interface FailedCamera {
 export interface CameraHealth {
   cameraId: string;
   cameraName: string;
-  status: 'Healthy' | 'Warning' | 'Critical';
+  status: 'Active' | 'Maintenance' | 'Offline' | string;
   uptime: number;
   lastSeen: string;
-  streamHealth: number;
+  reason?: string;
+  streamUrl?: string;
+}
+
+export interface CameraHealthSummary {
+  totalCameras: number;
+  active: number;
+  offline: number;
+  maintenance: number;
+  testMode: number;
+  checkedAt: string;
+  note?: string;
+}
+
+export interface CameraHealthResponse {
+  summary: CameraHealthSummary;
+  details: CameraHealth[];
+  cameras: CameraHealth[];
 }
 
 export interface IngestionJob {
   jobId: string;
-  status: 'Pending' | 'Processing' | 'Completed' | 'Failed';
+  jobType?: string;
+  status: 'Pending' | 'Processing' | 'Completed' | 'Failed' | 'Unknown' | string;
   progress: number;
   createdAt: string;
+  startedAt?: string;
   completedAt?: string;
+  endedAt?: string;
   errorMessage?: string;
+  totalAttempts?: number;
+  successfulAttempts?: number;
+  failedAttempts?: number;
+  avgLatency?: number;
 }
 
 export interface IngestionJobsResponse {
   items: IngestionJob[];
+  jobs?: IngestionJob[];
   total: number;
   page: number;
   pageSize: number;
+  totalPages?: number;
 }
 
-export interface IngestionStats {
-  date: string;
-  processedRecords: number;
-  failedRecords: number;
-  averageProcessingTime: number;
+export interface IngestionStatsResponse {
+  period: string;
+  jobs: {
+    total: number;
+    completed: number;
+    failed: number;
+    successRate: number;
+  };
+  attempts: {
+    total: number;
+    successful: number;
+    failed: number;
+    successRate: number;
+    averageLatency: number;
+  };
+  problematicCameras: {
+    cameraId: string;
+    totalAttempts: number;
+    failedAttempts: number;
+    errorRate: number;
+    averageLatency: number;
+  }[];
 }
 
 export interface AuditLog {
@@ -348,6 +425,7 @@ export interface ChatbotMessageRequest {
 }
 
 export interface ChatbotResponse {
+  reply: string;
   message: string;
   suggestions?: string[];
 }
