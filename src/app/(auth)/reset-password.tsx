@@ -1,9 +1,10 @@
+import { resetPassword } from '@/services/auth';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeInUp } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -32,7 +33,7 @@ export default function ResetPasswordScreen() {
 
     setLoading(true);
     try {
-      await apiClient.resetPassword(token.trim(), newPassword);
+      await resetPassword(token.trim(), newPassword);
       setSuccess(true);
     } catch (e: any) {
       setErrorMsg(e.response?.data?.message || 'Token không hợp lệ hoặc đã hết hạn.');

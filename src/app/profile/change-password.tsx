@@ -1,9 +1,10 @@
+import { changePassword } from '@/services/auth';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 import { useTheme } from '@/hooks/useTheme';
 
 export default function ChangePasswordScreen() {
@@ -38,7 +39,7 @@ export default function ChangePasswordScreen() {
 
     setLoading(true);
     try {
-      await apiClient.changePassword(oldPassword, newPassword);
+      await changePassword(oldPassword, newPassword);
       setSuccessMsg('Đổi mật khẩu thành công');
       setTimeout(() => router.back(), 1500);
     } catch (err: any) {

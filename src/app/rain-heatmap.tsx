@@ -1,10 +1,11 @@
+import { getWeatherHeatmap } from '@/services/weather';
 import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, Text, View, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 
 const heatmapHtml = `
 <!DOCTYPE html>
@@ -85,7 +86,7 @@ export default function RainHeatmapScreen() {
     setLoading(true);
     setError('');
     try {
-      const response = await apiClient.getWeatherHeatmap();
+      const response = await getWeatherHeatmap();
       const data = response.data;
       
       // Handle different response shapes

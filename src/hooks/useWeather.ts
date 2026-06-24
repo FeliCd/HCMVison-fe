@@ -1,7 +1,8 @@
+import { getLatestWeather as apiGetLatestWeather, getWeatherLogs as apiGetWeatherLogs, getRainingCameras as apiGetRainingCameras, reportWeather as apiReportWeather } from '@/services/weather';
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { apiClient } from '@/services/api';
+
 import { WeatherData, WeatherLog, RainingCamera } from '@/types/api';
 
 export const useWeather = () => {
@@ -19,7 +20,7 @@ export const useWeather = () => {
       const data = await queryClient.fetchQuery({
         queryKey: ['weather', 'latest'],
         queryFn: async () => {
-          const response = await apiClient.getLatestWeather();
+          const response = await apiGetLatestWeather();
           return response.data;
         },
       });
@@ -42,7 +43,7 @@ export const useWeather = () => {
         const data = await queryClient.fetchQuery({
           queryKey: ['weather', 'logs', minutes, limit, onlyWithImages],
           queryFn: async () => {
-            const response = await apiClient.getWeatherLogs(minutes, limit, onlyWithImages);
+            const response = await apiGetWeatherLogs(minutes, limit, onlyWithImages);
             return response.data;
           },
         });
@@ -68,7 +69,7 @@ export const useWeather = () => {
         const data = await queryClient.fetchQuery({
           queryKey: ['weather', 'raining-cameras', minutes],
           queryFn: async () => {
-            const response = await apiClient.getRainingCameras(minutes);
+            const response = await apiGetRainingCameras(minutes);
             return response.data;
           },
         });
@@ -89,7 +90,7 @@ export const useWeather = () => {
   const reportWeather = useCallback(
     async (data: { cameraId?: string; isRaining: boolean; note?: string }) => {
       try {
-        const response = await apiClient.reportWeather(data);
+        const response = await apiReportWeather(data);
         return response.data;
       } catch (err: any) {
         const message = err.response?.data?.message || 'Không thể gửi báo cáo thời tiết';

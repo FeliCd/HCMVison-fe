@@ -1,3 +1,4 @@
+import { forgotPassword } from '@/services/auth';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -20,7 +21,7 @@ import Animated, {
   BounceIn,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -44,7 +45,7 @@ export default function ForgotPasswordScreen() {
     }
     setIsLoading(true);
     try {
-      await apiClient.forgotPassword(email.trim());
+      await forgotPassword(email.trim());
       setIsSent(true);
     } catch (err: any) {
       const responseData = err.response?.data;

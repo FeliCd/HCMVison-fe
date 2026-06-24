@@ -1,6 +1,7 @@
+import { getCameras as apiGetCameras, createCamera as apiCreateCamera, updateCamera as apiUpdateCamera, deleteCamera as apiDeleteCamera } from '@/services/camera';
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/services/api';
+
 import { Camera, CameraListResponse } from '@/types/api';
 
 export const useCamera = () => {
@@ -18,7 +19,7 @@ export const useCamera = () => {
       const data = await queryClient.fetchQuery({
         queryKey: ['cameras', search || '', page, pageSize],
         queryFn: async () => {
-          const response = await apiClient.getCameras(search, undefined, page, pageSize);
+          const response = await apiGetCameras(search, undefined, page, pageSize);
           return response.data as CameraListResponse;
         },
       });
@@ -36,10 +37,10 @@ export const useCamera = () => {
     }
   }, [queryClient]);
 
-  const createCamera = async (data: Parameters<typeof apiClient.createCamera>[0]) => {
+  const createCamera = async (data: Parameters<typeof apiCreateCamera>[0]) => {
     setLoading(true);
     try {
-      const response = await apiClient.createCamera(data);
+      const response = await apiCreateCamera(data);
       return response.data;
     } catch (err: any) {
       const message = err.response?.data?.message || 'Không thể tạo camera';
@@ -50,10 +51,10 @@ export const useCamera = () => {
     }
   };
 
-  const updateCamera = async (id: string, data: Parameters<typeof apiClient.updateCamera>[1]) => {
+  const updateCamera = async (id: string, data: Parameters<typeof apiUpdateCamera>[1]) => {
     setLoading(true);
     try {
-      const response = await apiClient.updateCamera(id, data);
+      const response = await apiUpdateCamera(id, data);
       return response.data;
     } catch (err: any) {
       const message = err.response?.data?.message || 'Không thể cập nhật camera';
@@ -67,7 +68,7 @@ export const useCamera = () => {
   const deleteCamera = async (id: string) => {
     setLoading(true);
     try {
-      await apiClient.deleteCamera(id);
+      await apiDeleteCamera(id);
       setCameras((prev) => prev.filter((c) => c.id !== id));
     } catch (err: any) {
       const message = err.response?.data?.message || 'Không thể xoá camera';

@@ -1,3 +1,5 @@
+import { checkCameraHealth, getAdminAuditLogs } from '@/services/admin';
+import { getWeatherLogs } from '@/services/weather';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -5,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AdminBottomBar } from '@/components/admin-bottom-bar';
 import { Icon, IconName } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 import { formatAdminAuditLog } from '@/utils/admin-display';
 
 const numberFormatter = new Intl.NumberFormat('vi-VN');
@@ -14,15 +16,15 @@ export default function AdminDashboardScreen() {
   const insets = useSafeAreaInsets();
   const healthQuery = useQuery({
     queryKey: ['admin', 'camera-health'],
-    queryFn: async () => (await apiClient.checkCameraHealth()).data,
+    queryFn: async () => (await checkCameraHealth()).data,
   });
   const weatherQuery = useQuery({
     queryKey: ['weather', 'logs', 180, 10],
-    queryFn: async () => (await apiClient.getWeatherLogs(180, 10)).data,
+    queryFn: async () => (await getWeatherLogs(180, 10)).data,
   });
   const auditQuery = useQuery({
     queryKey: ['admin', 'audit-logs', 8],
-    queryFn: async () => (await apiClient.getAdminAuditLogs(8)).data,
+    queryFn: async () => (await getAdminAuditLogs(8)).data,
   });
 
   const isLoading = healthQuery.isLoading || weatherQuery.isLoading || auditQuery.isLoading;

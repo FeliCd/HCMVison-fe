@@ -1,21 +1,22 @@
+import { getIngestionStats, getIngestionJobs } from '@/services/admin';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 import { formatIngestionStatus } from '@/utils/admin-display';
 
 export default function IngestionJobsScreen() {
   const insets = useSafeAreaInsets();
   const statsQuery = useQuery({
     queryKey: ['admin', 'ingestion-stats', 7],
-    queryFn: async () => (await apiClient.getIngestionStats(7)).data,
+    queryFn: async () => (await getIngestionStats(7)).data,
   });
   const jobsQuery = useQuery({
     queryKey: ['admin', 'ingestion-jobs', 1, 20],
-    queryFn: async () => (await apiClient.getIngestionJobs(1, 20)).data,
+    queryFn: async () => (await getIngestionJobs(1, 20)).data,
   });
 
   const isLoading = statsQuery.isLoading || jobsQuery.isLoading;

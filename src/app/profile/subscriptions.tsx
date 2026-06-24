@@ -1,10 +1,11 @@
+import { getSubscriptions, updateSubscription, deleteSubscription } from '@/services/misc';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Switch, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
 import { RequireAuth } from '@/components/route-guards';
-import { apiClient } from '@/services/api';
+
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 function SubscriptionsContent() {
@@ -17,7 +18,7 @@ function SubscriptionsContent() {
     setLoading(true);
     setError('');
     try {
-      const response = await apiClient.getSubscriptions();
+      const response = await getSubscriptions();
       setSubs(response.data?.items || []);
     } catch (e: any) {
       setError(e.response?.data?.message || 'Không thể tải danh sách cảnh báo');
@@ -33,7 +34,7 @@ function SubscriptionsContent() {
   const handleToggle = async (id: string, current: boolean) => {
     try {
       setSubs(prev => prev.map(s => s.subscriptionId === id ? { ...s, isEnabled: !current } : s));
-      await apiClient.updateSubscription(id, { isEnabled: !current });
+      await updateSubscription(id, { isEnabled: !current });
     } catch {
       // revert on fail
       setSubs(prev => prev.map(s => s.subscriptionId === id ? { ...s, isEnabled: current } : s));
@@ -46,7 +47,7 @@ function SubscriptionsContent() {
       { text: 'Huỷ', style: 'cancel' },
       { text: 'Xoá', style: 'destructive', onPress: async () => {
         try {
-          await apiClient.deleteSubscription(id);
+          await deleteSubscription(id);
           setSubs(prev => prev.filter(s => s.subscriptionId !== id));
         } catch {
           Alert.alert('Lỗi', 'Không thể xoá đăng ký');

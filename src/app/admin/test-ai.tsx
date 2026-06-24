@@ -1,3 +1,4 @@
+import { testWeatherAI } from '@/services/weather';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -15,7 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 import { getApiErrorMessage } from '@/utils/api-error';
 import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
@@ -69,7 +70,7 @@ export default function TestAIScreen() {
         { uri: image.uri, name: filename, type: `image/${extension}` } as unknown as Blob
       );
 
-      const response = await apiClient.testWeatherAI(formData, saveLog);
+      const response = await testWeatherAI(formData, saveLog);
       setResult(response.data as AiTestResult);
     } catch (error) {
       Alert.alert('Không thể phân tích ảnh', getApiErrorMessage(error, 'Không thể kết nối với máy chủ AI.'));
