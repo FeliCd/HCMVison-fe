@@ -2,12 +2,16 @@ import { Camera, WeatherLog } from '@/types/api';
 
 export interface CameraWithWeather extends Camera {
   latestWeather?: WeatherLog;
-  displayImageUrl?: string;
+  imageSources: CameraImageSources;
   isRaining?: boolean;
   rainLevel?: string;
   trafficLevel?: string;
   confidence?: number;
   timeAgo?: string;
+}
+
+export interface CameraImageSources {
+  weatherImageUrl?: string;
 }
 
 export function mapLatestWeatherByCamera(logs: WeatherLog[]) {
@@ -31,19 +35,38 @@ export function mapLatestWeatherByCamera(logs: WeatherLog[]) {
   return latestByCamera;
 }
 
-export function getCameraDisplayImage(camera?: Camera | null, weather?: WeatherLog | null) {
-  if (weather?.imageUrl && !weather.imageIsRedacted && !weather.imageDeletedAtUtc) {
-    return weather.imageUrl;
-  }
-
-  if (camera?.demoImageUrl) {
-    return camera.demoImageUrl;
-  }
-
-  return undefined;
+function isExpired(expiresAt?: string) {
+  if (!expiresAt) return false;
+  const timestamp = Date.parse(expiresAt);
+  return !Number.isNaN(timestamp) && timestamp <= Date.now();
 }
 
-export function mergeCamerasWithWeather(cameras: Camera[], logs: WeatherLog[]): CameraWithWeather[] {
+export function getCameraImageSources(
+  camera?: Camera | null,
+  weather?: WeatherLog | null
+): CameraImageSources {
+  const weatherImageUrl =
+    weather?.imageUrl &&
+    !weather.imageDeletedAtUtc &&
+    !isExpired(weather.imageExpiresAtUtc)
+      ? weather.imageUrl
+      : undefined;
+
+  // Nếu không có ảnh thời tiết từ AI, dùng ảnh live từ streamUrl (đổi sang https)
+  let finalImageUrl = weatherImageUrl;
+  if (!finalImageUrl && camera?.streamUrl) {
+    finalImageUrl = camera.streamUrl.replace(/^http:\/\//i, 'https://');
+  }
+
+  return {
+    weatherImageUrl: finalImageUrl,
+  };
+}
+
+export function mergeCamerasWithWeather(
+  cameras: Camera[],
+  logs: WeatherLog[]
+): CameraWithWeather[] {
   const latestByCamera = mapLatestWeatherByCamera(logs);
 
   return cameras.map((camera) => {
@@ -51,7 +74,7 @@ export function mergeCamerasWithWeather(cameras: Camera[], logs: WeatherLog[]): 
     return {
       ...camera,
       latestWeather,
-      displayImageUrl: getCameraDisplayImage(camera, latestWeather),
+      imageSources: getCameraImageSources(camera, latestWeather),
       isRaining: latestWeather?.isRaining,
       rainLevel: latestWeather?.rainLevel,
       trafficLevel: latestWeather?.trafficLevel,

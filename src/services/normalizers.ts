@@ -1,17 +1,14 @@
 import {
   AdminAccountAuditLog,
   AdminAuditLogResponse,
-  AdminRole,
   AdminStats,
   AdminUser,
-  AdminUsersQuery,
   AdminUsersResponse,
   AlertSubscription,
   Camera,
   CameraHealth,
   CameraHealthResponse,
   CameraListResponse,
-  ChatbotResponse,
   FailedCamera,
   Favorite,
   FavoriteListResponse,
@@ -94,7 +91,6 @@ export function normalizeCamera(raw: unknown): Camera {
     status: (field<string>(raw, 'status') || 'Offline') as Camera['status'],
     streamUrl: field<string>(raw, 'streamUrl'),
     streamType: field<string>(raw, 'streamType'),
-    demoImageUrl: toAbsoluteImageUrl(field<string>(raw, 'demoImageUrl')),
     lastUpdatedAt: field<string>(raw, 'lastUpdatedAt'),
   };
 }

@@ -18,6 +18,7 @@ export const useCamera = () => {
       setError(null);
       const data = await queryClient.fetchQuery({
         queryKey: ['cameras', search || '', page, pageSize],
+        staleTime: 0,
         queryFn: async () => {
           const response = await apiGetCameras(search, undefined, page, pageSize);
           return response.data as CameraListResponse;

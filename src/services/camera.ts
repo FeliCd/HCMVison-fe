@@ -41,23 +41,6 @@ export async function deleteCamera(id: string) {
   return apiCore.request({ method: 'DELETE', url: `/Camera/${id}`, authPolicy: 'admin' });
 }
 
-export async function uploadDemoImage(id: string, file: FormData) {
-  return apiCore.request({
-    method: 'POST',
-    url: `/Camera/${id}/demo-image`,
-    data: file,
-    headers: { 'Content-Type': 'multipart/form-data' },
-    authPolicy: 'admin',
-  });
-}
-
-export async function setDemoImage(id: string, fileName: string) {
-  return apiCore.request({ method: 'PUT', url: `/Camera/${id}/demo-image`, data: { fileName }, authPolicy: 'admin' });
-}
-
-export async function restoreStream(id: string, data: { streamUrl: string; streamType?: string }) {
-  return apiCore.request({ method: 'PUT', url: `/Camera/${id}/restore-stream`, data, authPolicy: 'admin' });
-}
 
 export async function runAiTest(id: string, saveWeatherLog = false) {
   return apiCore.request({ method: 'POST', url: `/Camera/${id}/run-ai-test`, data: { saveWeatherLog }, authPolicy: 'admin' });

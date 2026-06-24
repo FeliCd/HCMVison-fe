@@ -199,8 +199,13 @@ export default function TabTwoScreen() {
   const iframeRef = useRef<any>(null);
 
   useEffect(() => {
-    getWeatherLogs(60, 500);
-    getCameras(undefined, 1, 1000);
+    // The map remains useful with its base tiles when the API is temporarily
+    // unavailable. Handle both startup requests so a network failure does not
+    // become an unhandled promise rejection in the app's error overlay.
+    void Promise.allSettled([
+      getWeatherLogs(60, 500),
+      getCameras(undefined, 1, 1000),
+    ]);
   }, [getWeatherLogs, getCameras]);
 
   useEffect(() => {

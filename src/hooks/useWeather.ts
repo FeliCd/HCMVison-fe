@@ -19,6 +19,7 @@ export const useWeather = () => {
       setError(null);
       const data = await queryClient.fetchQuery({
         queryKey: ['weather', 'latest'],
+        staleTime: 0,
         queryFn: async () => {
           const response = await apiGetLatestWeather();
           return response.data;
@@ -42,6 +43,7 @@ export const useWeather = () => {
         setError(null);
         const data = await queryClient.fetchQuery({
           queryKey: ['weather', 'logs', minutes, limit, onlyWithImages],
+          staleTime: 0,
           queryFn: async () => {
             const response = await apiGetWeatherLogs(minutes, limit, onlyWithImages);
             return response.data;
@@ -68,6 +70,7 @@ export const useWeather = () => {
         setError(null);
         const data = await queryClient.fetchQuery({
           queryKey: ['weather', 'raining-cameras', minutes],
+          staleTime: 0,
           queryFn: async () => {
             const response = await apiGetRainingCameras(minutes);
             return response.data;

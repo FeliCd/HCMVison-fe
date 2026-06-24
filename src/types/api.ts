@@ -46,7 +46,6 @@ export interface Camera {
   status: 'Active' | 'Inactive' | 'Offline';
   streamUrl?: string;
   streamType?: string;
-  demoImageUrl?: string;
   lastUpdatedAt?: string;
 }
 

@@ -1,17 +1,17 @@
 import { getCameras } from '@/services/camera';
 import { getWeatherLogs } from '@/services/weather';
 import { getFavorites, removeFavorite, addFavorite } from '@/services/misc';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator } from 'react-native';
-import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CameraImage } from '@/components/camera-image';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
 
 import { Camera, WeatherLog } from '@/types/api';
-import { getCameraDisplayImage, mapLatestWeatherByCamera } from '@/utils/camera-weather';
+import { getCameraImageSources, mapLatestWeatherByCamera } from '@/utils/camera-weather';
 import { formatRainLevel, formatTrafficLevel, formatWeatherAiReason } from '@/utils/weather-display';
 import { formatCameraStatus } from '@/utils/admin-display';
 
@@ -30,18 +30,20 @@ export default function CameraDetailContent({ id, name, onClose }: CameraDetailC
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [imageRefreshAt, setImageRefreshAt] = useState(() => Date.now());
 
-  useEffect(() => {
-    if (!id) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return undefined;
 
-    let cancelled = false;
+      let cancelled = false;
 
-    const fetchData = async () => {
-      setLoading(true);
-      try {
+      const fetchCameraData = async (showLoading: boolean) => {
+        if (showLoading) setLoading(true);
+
         const [cameraResponse, weatherResponse] = await Promise.all([
           getCameras(undefined, undefined, 1, 1000).catch(() => null),
-          getWeatherLogs(240, 500, true).catch(() => null),
+          getWeatherLogs(240, 500, false).catch(() => null),
         ]);
 
         if (cancelled) return;
@@ -51,30 +53,41 @@ export default function CameraDetailContent({ id, name, onClose }: CameraDetailC
         setCamera(foundCamera);
         setLatestLog(latestWeather);
 
-        if (isAuthenticated) {
-          const favoriteResponse = await getFavorites().catch(() => null);
-          if (!cancelled) {
-            const favorites = favoriteResponse?.data.items || [];
-            setIsFavorite(favorites.some((favorite) => favorite.cameraId === id));
-          }
-        } else {
-          setIsFavorite(false);
+        if (cameraResponse || weatherResponse) {
+          setImageRefreshAt(Date.now());
         }
-      } catch (error) {
-        console.error('CameraDetail fetch error:', error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
 
-    void fetchData();
+        if (showLoading) setLoading(false);
+      };
 
-    return () => {
-      cancelled = true;
-    };
-  }, [id, isAuthenticated]);
+      const fetchFavorite = async () => {
+        if (!isAuthenticated) {
+          setIsFavorite(false);
+          return;
+        }
 
-  const displayImageUrl = useMemo(() => getCameraDisplayImage(camera, latestLog), [camera, latestLog]);
+        const favoriteResponse = await getFavorites().catch(() => null);
+        if (!cancelled) {
+          const favorites = favoriteResponse?.data.items || [];
+          setIsFavorite(favorites.some((favorite) => favorite.cameraId === id));
+        }
+      };
+
+      void fetchCameraData(true);
+      void fetchFavorite();
+      const interval = setInterval(() => void fetchCameraData(false), 15_000);
+
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
+    }, [id, isAuthenticated])
+  );
+
+  const imageSources = useMemo(
+    () => getCameraImageSources(camera, latestLog),
+    [camera, latestLog]
+  );
 
   const toggleFavorite = async () => {
     if (!isAuthenticated || favoriteLoading) return;
@@ -139,19 +152,18 @@ export default function CameraDetailContent({ id, name, onClose }: CameraDetailC
         ) : (
           <>
             <View style={styles.cameraFrame}>
-              {displayImageUrl ? (
-                <Image
-                  source={{ uri: displayImageUrl }}
-                  style={styles.cameraImage}
-                  contentFit="cover"
-                  transition={180}
-                />
-              ) : (
-                <View style={styles.noImageBox}>
-                  <Icon name="videocam" color="#334155" size={48} />
-                  <Text style={styles.noImageText}>Chưa có hình ảnh</Text>
-                </View>
-              )}
+              <CameraImage
+                sources={imageSources}
+                refreshKey={imageRefreshAt}
+                style={styles.cameraImage}
+                accessibilityLabel={`Ảnh camera ${displayName}`}
+                fallback={
+                  <View style={styles.noImageBox}>
+                    <Icon name="videocam" color="#334155" size={48} />
+                    <Text style={styles.noImageText}>Chưa có hình ảnh</Text>
+                  </View>
+                }
+              />
               <View style={styles.liveTag}>
                 <View style={[styles.liveDot, { backgroundColor: isOnline ? '#22c55e' : '#f87171' }]} />
                 <Text style={styles.liveText}>{isOnline ? 'ĐANG HOẠT ĐỘNG' : 'NGOẠI TUYẾN'}</Text>

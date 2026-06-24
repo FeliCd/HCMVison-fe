@@ -1,13 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, ActivityIndicator, useWindowDimensions, TextInput } from 'react-native';
-import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
 import { useWeather } from '@/hooks/useWeather';
 import { useCamera } from '@/hooks/useCamera';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { CameraImage } from '@/components/camera-image';
 import { mergeCamerasWithWeather } from '@/utils/camera-weather';
 import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
@@ -18,16 +18,32 @@ export default function StatusScreen() {
   const { cameras, getCameras, loading: camerasLoading } = useCamera();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchText, setSearchText] = useState('');
+  const [imageRefreshAt, setImageRefreshAt] = useState(() => Date.now());
 
   const numColumns = width >= 768 ? 4 : 1;
   const gap = 16;
   const cardWidth = width >= 768 ? Math.floor((width - 64 - (numColumns - 1) * gap) / numColumns) : '100%';
 
-  useEffect(() => {
-    getRainingCameras(30);
-    getWeatherLogs(180, 500, true);
-    getCameras(undefined, 1, 1000);
+  const refreshLiveData = useCallback(async () => {
+    const results = await Promise.allSettled([
+      getRainingCameras(30),
+      getWeatherLogs(180, 500, false),
+      getCameras(undefined, 1, 1000),
+    ]);
+
+    if (results.some((result) => result.status === 'fulfilled')) {
+      setImageRefreshAt(Date.now());
+    }
   }, [getCameras, getRainingCameras, getWeatherLogs]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshLiveData();
+      const interval = setInterval(() => void refreshLiveData(), 15_000);
+
+      return () => clearInterval(interval);
+    }, [refreshLiveData])
+  );
 
   // Đếm điểm kẹt xe từ weather logs
   const congestedCount = logs.filter(
@@ -37,7 +53,10 @@ export default function StatusScreen() {
   const rainingCount = rainingCameras.length;
 
   // Lọc camera không phân biệt chữ hoa / chữ thường
-  const cameraCards = useMemo(() => mergeCamerasWithWeather(cameras, logs), [cameras, logs]);
+  const cameraCards = useMemo(
+    () => mergeCamerasWithWeather(cameras, logs),
+    [cameras, logs]
+  );
 
   const filteredCameras = cameraCards.filter((cam) => {
     if (!searchText) return true;
@@ -147,19 +166,18 @@ export default function StatusScreen() {
                     onPress={() => router.push({ pathname: '/camera-detail', params: { id: cam.id, name: cam.name } })}
                   >
                     <View style={viewMode === 'grid' ? styles.newCameraImageContainer : styles.listCameraImageContainer}>
-                      {cam.displayImageUrl ? (
-                        <Image
-                          source={{ uri: cam.displayImageUrl }}
-                          style={styles.newCameraImage}
-                          contentFit="cover"
-                          transition={180}
-                        />
-                      ) : (
-                        <View style={styles.newImagePlaceholder}>
-                          <Icon name="image" color="#cbd5e1" size={viewMode === 'grid' ? 48 : 32} />
-                          {viewMode === 'grid' && <Text style={styles.newImagePlaceholderText}>Chưa có ảnh</Text>}
-                        </View>
-                      )}
+                      <CameraImage
+                        sources={cam.imageSources}
+                        refreshKey={imageRefreshAt}
+                        style={styles.newCameraImage}
+                        accessibilityLabel={`Ảnh camera ${cam.name}`}
+                        fallback={
+                          <View style={styles.newImagePlaceholder}>
+                            <Icon name="image" color="#cbd5e1" size={viewMode === 'grid' ? 48 : 32} />
+                            {viewMode === 'grid' && <Text style={styles.newImagePlaceholderText}>Chưa có ảnh</Text>}
+                          </View>
+                        }
+                      />
                       
                       
                       <View style={styles.onlineBadge}>
