@@ -3,10 +3,11 @@ import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Switc
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
+import { RequireAuth } from '@/components/route-guards';
 import { apiClient } from '@/services/api';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-export default function SubscriptionsScreen() {
+function SubscriptionsContent() {
   const insets = useSafeAreaInsets();
   const [subs, setSubs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +113,14 @@ export default function SubscriptionsScreen() {
         )}
       </ScrollView>
     </View>
+  );
+}
+
+export default function SubscriptionsScreen() {
+  return (
+    <RequireAuth>
+      <SubscriptionsContent />
+    </RequireAuth>
   );
 }
 

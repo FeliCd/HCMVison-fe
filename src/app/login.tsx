@@ -49,7 +49,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={[
@@ -64,7 +64,7 @@ export default function LoginScreen() {
             <Icon name="location_on" color="#00f2ea" size={32} />
           </View>
           <Text style={styles.title}>
-            HCMRain<Text style={styles.titleHighlight}>Vision</Text>
+            HCM<Text style={styles.titleHighlight}>Vision</Text>
           </Text>
           <Text style={styles.subtitle}>Nền tảng di chuyển thông minh TP.HCM</Text>
         </Animated.View>
@@ -83,7 +83,7 @@ export default function LoginScreen() {
 
             {/* Username Field */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Username</Text>
+              <Text style={styles.label}>Tên đăng nhập</Text>
               <View style={styles.inputWrapper}>
                 <View style={styles.inputIcon}>
                   <Icon name="person" color="#849492" size={20} />
@@ -104,7 +104,7 @@ export default function LoginScreen() {
             {/* Password Field */}
             <View style={styles.inputGroup}>
               <View style={styles.passwordHeader}>
-                <Text style={styles.label}>Password</Text>
+                <Text style={styles.label}>Mật khẩu</Text>
                 <Link href="/forgot-password" asChild>
                   <Pressable>
                     <Text style={styles.forgotPassword}>Quên mật khẩu?</Text>
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: '800',
     color: '#d4e4fa',
-    letterSpacing: -0.6,
+    letterSpacing: 0,
   },
   titleHighlight: {
     color: '#00f2ea',

@@ -32,7 +32,7 @@ export default function PermissionLocationScreen() {
         <Animated.View entering={FadeInUp.duration(600).delay(300)}>
           <Text style={styles.title}>Cấp quyền Vị trí</Text>
           <Text style={styles.subtitle}>
-            HCMRainVision cần quyền truy cập vị trí của bạn để cảnh báo ngập lụt và đề xuất tuyến đường chính xác nhất theo thời gian thực.
+            HCMVision cần quyền truy cập vị trí của bạn để cảnh báo ngập lụt và đề xuất tuyến đường chính xác nhất theo thời gian thực.
           </Text>
         </Animated.View>
         

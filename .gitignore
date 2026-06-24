@@ -36,6 +36,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# local demo artifacts
+TEST_REPORT_*.md
+builds/
+
 example
 
 # generated native folders

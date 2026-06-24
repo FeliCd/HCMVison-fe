@@ -77,7 +77,7 @@ export default function MoreScreen() {
             {user?.role === 'Admin' && (
               <View style={[styles.adminBadge, { backgroundColor: 'rgba(129, 140, 248, 0.1)', borderColor: 'rgba(129, 140, 248, 0.2)' }]}>
                 <Icon name="admin_panel_settings" size={12} color="#818cf8" />
-                <Text style={styles.adminBadgeText}>Admin</Text>
+                <Text style={styles.adminBadgeText}>Quản trị viên</Text>
               </View>
             )}
           </View>
@@ -93,13 +93,13 @@ export default function MoreScreen() {
           {user?.role === 'Admin' && (
             <Pressable
               style={[styles.menuRow, dynamicStyles.rowBorder]}
-              onPress={() => router.push('/admin')}
+              onPress={() => router.push('/admin' as any)}
             >
               <View style={styles.menuRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: colors.surfaceHighlight }]}>
                   <Icon name="admin_panel_settings" size={22} color="#818cf8" />
                 </View>
-                <Text style={[styles.menuRowTitle, dynamicStyles.text]}>Quản trị viên (Admin)</Text>
+                <Text style={[styles.menuRowTitle, dynamicStyles.text]}>Khu vực quản trị</Text>
               </View>
               <Icon name="chevron_right" size={20} color={colors.textMuted} />
             </Pressable>

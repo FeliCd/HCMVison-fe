@@ -14,6 +14,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icons';
+import { RequireAuth } from '@/components/route-guards';
 import { syncDeviceTokenAsync } from '@/services/NotificationManager';
 import { apiClient } from '@/services/api';
 import { AlertSubscription, Ward } from '@/types/api';
@@ -58,7 +59,7 @@ function getSubscriptionId(subscription: AlertSubscription) {
   return subscription.subscriptionId || (subscription as any).id;
 }
 
-export default function PermissionNotificationScreen() {
+function PermissionNotificationContent() {
   const insets = useSafeAreaInsets();
   const [wards, setWards] = useState<Ward[]>([]);
   const [subscriptions, setSubscriptions] = useState<AlertSubscription[]>([]);
@@ -364,6 +365,14 @@ export default function PermissionNotificationScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
     </View>
+  );
+}
+
+export default function PermissionNotificationScreen() {
+  return (
+    <RequireAuth>
+      <PermissionNotificationContent />
+    </RequireAuth>
   );
 }
 

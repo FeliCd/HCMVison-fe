@@ -3,9 +3,10 @@ import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
+import { RequireAuth } from '@/components/route-guards';
 import { apiClient } from '@/services/api';
 
-export default function AddSubscriptionScreen() {
+function AddSubscriptionContent() {
   const insets = useSafeAreaInsets();
   const [districts, setDistricts] = useState<any[]>([]);
   const [wards, setWards] = useState<any[]>([]);
@@ -128,6 +129,14 @@ export default function AddSubscriptionScreen() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+export default function AddSubscriptionScreen() {
+  return (
+    <RequireAuth>
+      <AddSubscriptionContent />
+    </RequireAuth>
   );
 }
 
