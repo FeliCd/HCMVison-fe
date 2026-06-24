@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   Keyboard,
   Platform,
@@ -243,6 +243,18 @@ export default function TabTwoScreen() {
     setLocations(mergedLocations);
   }, [logs, cameras]);
 
+  const { rainingCount, jamCount } = useMemo(() => {
+    const latestLogsMap = new Map<string, WeatherLog>();
+    logs.forEach(log => {
+      if (!latestLogsMap.has(log.cameraId)) {
+        latestLogsMap.set(log.cameraId, log);
+      }
+    });
+    const rain = Array.from(latestLogsMap.values()).filter(log => log.isRaining).length;
+    const jam = Array.from(latestLogsMap.values()).filter(log => log.trafficLevel === 'jam' || log.trafficLevel === 'slow').length;
+    return { rainingCount: rain, jamCount: jam };
+  }, [logs]);
+
   const bottomBarHeight = 64 + insets.bottom;
   const fabsBottom = bottomBarHeight + 16;
   const infoPanelBottom = bottomBarHeight + 12;
@@ -435,14 +447,14 @@ export default function TabTwoScreen() {
           <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
             <Icon name="rainy" color={colors.danger} size={14} />
             <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
-              Đang mưa: {locations.filter(l => l.type === 'rain' || l.type === 'combine').length} camera
+              Đang mưa: {rainingCount} camera
             </Text>
           </View>
 
           <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
             <Icon name="traffic" color={colors.danger} size={14} />
             <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
-              Kẹt xe/chậm: {locations.filter(l => l.type === 'traffic' || l.type === 'combine').length} điểm
+              Kẹt xe/chậm: {jamCount} điểm
             </Text>
           </View>
         </ScrollView>
