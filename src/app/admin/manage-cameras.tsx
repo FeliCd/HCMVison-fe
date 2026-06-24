@@ -1,3 +1,4 @@
+import { runAiTest, deleteCamera } from '@/services/camera';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
@@ -6,7 +7,7 @@ import { AdminBottomBar } from '@/components/admin-bottom-bar';
 import { Icon } from '@/components/icons';
 import { useCamera } from '@/hooks/useCamera';
 import { Camera } from '@/types/api';
-import { apiClient } from '@/services/api';
+
 import { formatCameraStatus } from '@/utils/admin-display';
 
 export default function ManageCamerasScreen() {
@@ -35,7 +36,7 @@ export default function ManageCamerasScreen() {
   const handleRunAiTest = async (camera: Camera) => {
     setActionLoading(camera.id);
     try {
-      await apiClient.runAiTest(camera.id, true);
+      await runAiTest(camera.id, true);
       Alert.alert('Thành công', `Đã chạy AI test cho camera ${camera.name}`);
     } catch (e: any) {
       Alert.alert('Lỗi', e?.response?.data?.message || 'Không thể chạy AI test');
@@ -49,7 +50,7 @@ export default function ManageCamerasScreen() {
       { text: 'Huỷ', style: 'cancel' },
       { text: 'Xoá', style: 'destructive', onPress: async () => {
         try {
-          await apiClient.deleteCamera(id);
+          await deleteCamera(id);
           getCameras(searchText, 1, 50);
           Alert.alert('Thành công', 'Đã xoá camera');
         } catch (e: any) {

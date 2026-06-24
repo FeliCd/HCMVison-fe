@@ -1,21 +1,22 @@
+import { checkCameraHealth, getFailedCameras } from '@/services/admin';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 import { formatCameraStatus } from '@/utils/admin-display';
 
 export default function SystemHealthScreen() {
   const insets = useSafeAreaInsets();
   const healthQuery = useQuery({
     queryKey: ['admin', 'camera-health'],
-    queryFn: async () => (await apiClient.checkCameraHealth()).data,
+    queryFn: async () => (await checkCameraHealth()).data,
   });
   const failedQuery = useQuery({
     queryKey: ['admin', 'failed-cameras'],
-    queryFn: async () => (await apiClient.getFailedCameras()).data,
+    queryFn: async () => (await getFailedCameras()).data,
   });
 
   const isLoading = healthQuery.isLoading || failedQuery.isLoading;

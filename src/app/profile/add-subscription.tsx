@@ -1,10 +1,12 @@
+import { getDistricts, getWardsByDistrict } from '@/services/location';
+import { createSubscription } from '@/services/misc';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
 import { RequireAuth } from '@/components/route-guards';
-import { apiClient } from '@/services/api';
+
 
 function AddSubscriptionContent() {
   const insets = useSafeAreaInsets();
@@ -22,7 +24,7 @@ function AddSubscriptionContent() {
 
   const fetchDistricts = async () => {
     try {
-      const response = await apiClient.getDistricts();
+      const response = await getDistricts();
       setDistricts(response.data || []);
     } catch {
       Alert.alert('Lỗi', 'Không thể tải danh sách quận');
@@ -37,7 +39,7 @@ function AddSubscriptionContent() {
     setWards([]);
     setLoading(true);
     try {
-      const response = await apiClient.getWardsByDistrict(name);
+      const response = await getWardsByDistrict(name);
       setWards(response.data || []);
     } catch {
       Alert.alert('Lỗi', 'Không thể tải danh sách phường');
@@ -50,7 +52,7 @@ function AddSubscriptionContent() {
     if (!selectedWard) return;
     setSubmitting(true);
     try {
-      await apiClient.createSubscription({ wardId: selectedWard, thresholdProbability: threshold });
+      await createSubscription({ wardId: selectedWard, thresholdProbability: threshold });
       Alert.alert('Thành công', 'Đã thêm cảnh báo khu vực mới');
       router.back();
     } catch (e: any) {

@@ -1,3 +1,5 @@
+import { getWards } from '@/services/location';
+import { getSubscriptions, createSubscription, deleteSubscription } from '@/services/misc';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { router } from 'expo-router';
 import {
@@ -16,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
 import { RequireAuth } from '@/components/route-guards';
 import { syncDeviceTokenAsync } from '@/services/NotificationManager';
-import { apiClient } from '@/services/api';
+
 import { AlertSubscription, Ward } from '@/types/api';
 
 const THRESHOLD_OPTIONS = [
@@ -78,8 +80,8 @@ function PermissionNotificationContent() {
 
     try {
       const [wardsResponse, subscriptionsResponse] = await Promise.all([
-        apiClient.getWards(),
-        apiClient.getSubscriptions(),
+        getWards(),
+        getSubscriptions(),
       ]);
 
       setWards(toArray<Ward>(wardsResponse.data));
@@ -152,7 +154,7 @@ function PermissionNotificationContent() {
     try {
       // Native builds also sync the FCM token here. Web can still test subscription API.
       await syncDeviceTokenAsync({ requestPermission: Platform.OS !== 'web' });
-      await apiClient.createSubscription({
+      await createSubscription({
         wardId: selectedWardId,
         thresholdProbability,
       });
@@ -182,7 +184,7 @@ function PermissionNotificationContent() {
     setMessage(null);
 
     try {
-      await apiClient.deleteSubscription(subscriptionId);
+      await deleteSubscription(subscriptionId);
       setMessage(`Đã xóa cảnh báo cho ${subscription.wardName || 'khu vực đã chọn'}.`);
       await loadNotificationSettings();
     } catch (deleteError) {

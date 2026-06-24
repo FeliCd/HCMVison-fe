@@ -1,3 +1,6 @@
+import { getCameras } from '@/services/camera';
+import { getWeatherLogs } from '@/services/weather';
+import { getFavorites, removeFavorite, addFavorite } from '@/services/misc';
 import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
@@ -6,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/api';
+
 import { Camera, WeatherLog } from '@/types/api';
 import { getCameraDisplayImage, mapLatestWeatherByCamera } from '@/utils/camera-weather';
 import { formatRainLevel, formatTrafficLevel, formatWeatherAiReason } from '@/utils/weather-display';
@@ -37,8 +40,8 @@ export default function CameraDetailContent({ id, name, onClose }: CameraDetailC
       setLoading(true);
       try {
         const [cameraResponse, weatherResponse] = await Promise.all([
-          apiClient.getCameras(undefined, undefined, 1, 1000).catch(() => null),
-          apiClient.getWeatherLogs(240, 500, true).catch(() => null),
+          getCameras(undefined, undefined, 1, 1000).catch(() => null),
+          getWeatherLogs(240, 500, true).catch(() => null),
         ]);
 
         if (cancelled) return;
@@ -49,7 +52,7 @@ export default function CameraDetailContent({ id, name, onClose }: CameraDetailC
         setLatestLog(latestWeather);
 
         if (isAuthenticated) {
-          const favoriteResponse = await apiClient.getFavorites().catch(() => null);
+          const favoriteResponse = await getFavorites().catch(() => null);
           if (!cancelled) {
             const favorites = favoriteResponse?.data.items || [];
             setIsFavorite(favorites.some((favorite) => favorite.cameraId === id));
@@ -79,9 +82,9 @@ export default function CameraDetailContent({ id, name, onClose }: CameraDetailC
     setFavoriteLoading(true);
     try {
       if (isFavorite) {
-        await apiClient.removeFavorite(id);
+        await removeFavorite(id);
       } else {
-        await apiClient.addFavorite(id);
+        await addFavorite(id);
       }
       setIsFavorite((current) => !current);
     } catch (error) {

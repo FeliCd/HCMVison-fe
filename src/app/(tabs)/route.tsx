@@ -1,3 +1,5 @@
+import { geocodeAddress, getOSRMRoutes } from '@/services/location';
+import { checkRoute } from '@/services/weather';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
@@ -16,7 +18,7 @@ import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 import { useTheme } from '@/hooks/useTheme';
 
 interface RouteData {
@@ -171,7 +173,7 @@ export default function RouteScreen() {
         }
         startCoord = { lat: location.coords.latitude, lng: location.coords.longitude };
       } else {
-        startCoord = await apiClient.geocodeAddress(from);
+        startCoord = await geocodeAddress(from);
         if (!startCoord) {
           setErrorMsg(`Không tìm thấy địa chỉ: ${from}`);
           setLoading(false);
@@ -179,14 +181,14 @@ export default function RouteScreen() {
         }
       }
 
-      endCoord = await apiClient.geocodeAddress(to);
+      endCoord = await geocodeAddress(to);
       if (!endCoord) {
         setErrorMsg(`Không tìm thấy địa chỉ: ${to}`);
         setLoading(false);
         return;
       }
 
-      const osrmData = await apiClient.getOSRMRoutes(
+      const osrmData = await getOSRMRoutes(
         startCoord.lng,
         startCoord.lat,
         endCoord.lng,
@@ -211,7 +213,7 @@ export default function RouteScreen() {
         const leafletCoords = coords.map((c: any) => ({ lat: c[1], lng: c[0] }));
 
         try {
-          const checkRes = await apiClient.checkRoute({ routePoints });
+          const checkRes = await checkRoute({ routePoints });
           const safetyData = checkRes.data;
 
           const distanceKm = (routeObj.distance / 1000).toFixed(1);

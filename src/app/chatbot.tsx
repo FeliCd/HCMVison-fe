@@ -1,3 +1,4 @@
+import { sendChatbotMessage } from '@/services/misc';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 
 interface Message {
   id: string;
@@ -63,7 +64,7 @@ export default function ChatbotScreen() {
     setLoading(true);
 
     try {
-      const response = await apiClient.sendChatbotMessage(content);
+      const response = await sendChatbotMessage(content);
       const botMsg: Message = {
         id: `${Date.now()}_a`,
         role: 'assistant',

@@ -1,3 +1,4 @@
+import { getUsers, updateUserStatus, updateUserRole } from '@/services/admin';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -16,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/services/api';
+
 import { AdminRole, AdminUser } from '@/types/api';
 import { formatAdminRole, formatAdminUserStatus } from '@/utils/admin-display';
 import { getApiErrorMessage } from '@/utils/api-error';
@@ -50,7 +51,7 @@ export default function ManageUsersScreen() {
     queryKey: ['admin', 'users', debouncedSearch, roleFilter, statusFilter, page],
     queryFn: async () =>
       (
-        await apiClient.getUsers({
+        await getUsers({
           search: debouncedSearch || undefined,
           role: roleFilter === 'all' ? undefined : roleFilter,
           isActive: statusFilter === 'all' ? undefined : statusFilter === 'active',
@@ -69,7 +70,7 @@ export default function ManageUsersScreen() {
 
   const statusMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
-      apiClient.updateUserStatus(id, isActive),
+      updateUserStatus(id, isActive),
     onSuccess: async () => {
       setSelectedUser(null);
       await invalidateUsers();
@@ -80,7 +81,7 @@ export default function ManageUsersScreen() {
   });
 
   const roleMutation = useMutation({
-    mutationFn: ({ id, role }: { id: number; role: AdminRole }) => apiClient.updateUserRole(id, role),
+    mutationFn: ({ id, role }: { id: number; role: AdminRole }) => updateUserRole(id, role),
     onSuccess: async () => {
       setSelectedUser(null);
       await invalidateUsers();
