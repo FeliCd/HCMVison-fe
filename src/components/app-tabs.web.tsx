@@ -5,7 +5,6 @@ import { useWindowDimensions, View, Pressable, StyleSheet } from 'react-native';
 
 import { Icon, IconName } from '@/components/icons';
 import { ThemedText } from './themed-text';
-import { useAuth } from '@/hooks/useAuth';
 
 // Desktop Top Navigation Tab Button
 function DesktopTabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
@@ -47,7 +46,6 @@ export default function AppTabs() {
   const { width } = useWindowDimensions();
   const pathname = usePathname();
   const isDesktop = width >= 768;
-  const { isAuthenticated } = useAuth();
 
   return (
     <Tabs>
@@ -61,7 +59,7 @@ export default function AppTabs() {
           <View style={styles.logoSection}>
             <Icon name="my_location" color="#00f2ea" size={20} />
             <ThemedText type="subtitle" style={styles.brandText}>
-              HCMRainVision
+              HCMVision
             </ThemedText>
           </View>
         )}
@@ -78,11 +76,9 @@ export default function AppTabs() {
           {isDesktop ? <DesktopTabButton>Tình trạng</DesktopTabButton> : <MobileTabButton icon="videocam">Tình trạng</MobileTabButton>}
         </TabTrigger>
 
-        {isAuthenticated && (
-          <TabTrigger name="warning" href="/(tabs)/warning" asChild>
-            {isDesktop ? <DesktopTabButton>Cảnh báo</DesktopTabButton> : <MobileTabButton icon="notifications">Cảnh báo</MobileTabButton>}
-          </TabTrigger>
-        )}
+        <TabTrigger name="warning" href="/(tabs)/warning" asChild>
+          {isDesktop ? <DesktopTabButton>Cảnh báo</DesktopTabButton> : <MobileTabButton icon="notifications">Cảnh báo</MobileTabButton>}
+        </TabTrigger>
 
         <TabTrigger name="more" href="/(tabs)/more" asChild>
           {isDesktop ? <DesktopTabButton>Thêm</DesktopTabButton> : <MobileTabButton icon="menu">Thêm</MobileTabButton>}

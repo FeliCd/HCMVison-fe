@@ -1,3 +1,5 @@
+import { saveDeviceToken, deleteDeviceToken } from '@/services/auth';
+import { getToken } from '@/services/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
@@ -5,7 +7,7 @@ import type * as NotificationsType from 'expo-notifications';
 import { router } from 'expo-router';
 import { AppState, Platform } from 'react-native';
 
-import { apiClient } from '@/services/api';
+
 
 const DEVICE_ID_STORAGE_KEY = 'hcmvision.deviceId';
 const FCM_TOKEN_STORAGE_KEY = 'hcmvision.fcmToken';
@@ -131,7 +133,7 @@ export async function registerForPushNotificationsAsync(options: SyncOptions = {
 export async function saveDevicePushTokenAsync(fcmToken: string) {
   const deviceId = await getOrCreateDeviceIdAsync();
 
-  await apiClient.saveDeviceToken({
+  await saveDeviceToken({
     fcmToken,
     deviceId,
     platform: Platform.OS === 'android' || Platform.OS === 'ios' ? Platform.OS : 'unknown',
@@ -143,7 +145,7 @@ export async function saveDevicePushTokenAsync(fcmToken: string) {
 }
 
 export async function syncDeviceTokenAsync(options: SyncOptions = {}) {
-  const authToken = await apiClient.getToken();
+  const authToken = await getToken();
   if (!authToken) {
     return null;
   }
@@ -166,7 +168,7 @@ export async function revokeCurrentDeviceTokenAsync() {
     return;
   }
 
-  await apiClient.deleteDeviceToken({ fcmToken });
+  await deleteDeviceToken({ fcmToken });
   await AsyncStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
 }
 
@@ -182,7 +184,7 @@ export function addPushTokenRefreshListener(): RemovableSubscription {
         return;
       }
 
-      void apiClient.getToken().then((authToken) => {
+      void getToken().then((authToken: string | null) => {
         if (!authToken) {
           return;
         }

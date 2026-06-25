@@ -1,9 +1,10 @@
+import { updateCamera, createCamera } from '@/services/camera';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+
 
 export default function EditCameraScreen() {
   const insets = useSafeAreaInsets();
@@ -28,7 +29,7 @@ export default function EditCameraScreen() {
     setSubmitting(true);
     try {
       if (isEdit) {
-        await apiClient.updateCamera(id, {
+        await updateCamera(id, {
           name,
           latitude: parseFloat(lat),
           longitude: parseFloat(lng),
@@ -37,7 +38,7 @@ export default function EditCameraScreen() {
         });
         Alert.alert('Thành công', 'Cập nhật camera thành công');
       } else {
-        await apiClient.createCamera({
+        await createCamera({
           id,
           name,
           latitude: parseFloat(lat),

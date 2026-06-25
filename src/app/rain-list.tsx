@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
 import { useWeather } from '@/hooks/useWeather';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { formatTrafficLevel } from '@/utils/weather-display';
 
 export default function RainListScreen() {
   const insets = useSafeAreaInsets();
@@ -86,7 +87,7 @@ export default function RainListScreen() {
                           </View>
                         </View>
                         <Text style={styles.itemDesc}>
-                          Giao thông: {cam.trafficLevel} • Độ tin cậy: {Math.round(cam.confidence * 100)}%
+                          Giao thông: {formatTrafficLevel(cam.trafficLevel)} • Độ tin cậy: {Math.round(cam.confidence * 100)}%
                         </Text>
                       </Pressable>
                     </Animated.View>
@@ -114,7 +115,7 @@ export default function RainListScreen() {
                           </View>
                         </View>
                         <Text style={styles.itemDesc}>
-                          Giao thông: {cam.trafficLevel} • Độ tin cậy: {Math.round(cam.confidence * 100)}%
+                          Giao thông: {formatTrafficLevel(cam.trafficLevel)} • Độ tin cậy: {Math.round(cam.confidence * 100)}%
                         </Text>
                       </Pressable>
                     </Animated.View>

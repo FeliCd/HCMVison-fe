@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
@@ -11,7 +10,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Icon, IconName } from '@/components/icons';
-import { useAuth } from '@/hooks/useAuth';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -23,7 +21,7 @@ function TabButton({ route, isFocused, onPress, label }: any) {
   useEffect(() => {
     indicatorWidth.value = withSpring(isFocused ? 20 : 0, { damping: 15, stiffness: 180 });
     indicatorOpacity.value = withTiming(isFocused ? 1 : 0, { duration: 250 });
-  }, [isFocused]);
+  }, [indicatorOpacity, indicatorWidth, isFocused]);
 
   const pressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -35,8 +33,7 @@ function TabButton({ route, isFocused, onPress, label }: any) {
   }));
 
   let iconName: IconName = 'map';
-  if (route.name === 'explore') iconName = 'map';
-  else if (route.name === 'route') iconName = 'directions_car';
+  if (route.name === 'route') iconName = 'directions_car';
   else if (route.name === 'system-status') iconName = 'videocam';
   else if (route.name === 'warning') iconName = 'notifications';
   else if (route.name === 'more') iconName = 'menu';
@@ -55,10 +52,7 @@ function TabButton({ route, isFocused, onPress, label }: any) {
       style={[styles.tabItem, pressStyle]}
     >
       <Icon name={iconName} color={color} size={21} />
-      <Text style={[styles.tabLabel, { color }, isFocused && styles.tabLabelActive]}>
-        {label}
-      </Text>
-      {/* Active indicator bar */}
+      <Text style={[styles.tabLabel, { color }, isFocused && styles.tabLabelActive]}>{label}</Text>
       <Animated.View style={[styles.indicator, indicatorStyle]} />
     </AnimatedPressable>
   );
@@ -70,12 +64,11 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 
   return (
     <View style={[styles.tabBarOuter, { bottom: bottomMargin }]}>
-      {/* Glass overlay */}
       <View style={styles.tabBarGlass} />
       <View style={styles.tabBarContent}>
         {state.routes.map((route: any, index: number) => {
           const { options } = descriptors[route.key];
-          
+
           if (options.href === null) {
             return null;
           }
@@ -111,8 +104,6 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 }
 
 export default function AppTabs() {
-  const { isAuthenticated } = useAuth();
-
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
@@ -120,37 +111,11 @@ export default function AppTabs() {
         headerShown: false,
       }}
     >
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Bản đồ',
-        }}
-      />
-      <Tabs.Screen
-        name="route"
-        options={{
-          title: 'Tuyến đường',
-        }}
-      />
-      <Tabs.Screen
-        name="system-status"
-        options={{
-          title: 'Tình trạng',
-        }}
-      />
-      <Tabs.Screen
-        name="warning"
-        options={{
-          title: 'Cảnh báo',
-          href: isAuthenticated ? undefined : null,
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: 'Thêm',
-        }}
-      />
+      <Tabs.Screen name="explore" options={{ title: 'Bản đồ' }} />
+      <Tabs.Screen name="route" options={{ title: 'Tuyến đường' }} />
+      <Tabs.Screen name="system-status" options={{ title: 'Tình trạng' }} />
+      <Tabs.Screen name="warning" options={{ title: 'Cảnh báo' }} />
+      <Tabs.Screen name="more" options={{ title: 'Thêm' }} />
     </Tabs>
   );
 }

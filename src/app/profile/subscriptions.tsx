@@ -1,12 +1,14 @@
+import { getSubscriptions, updateSubscription, deleteSubscription } from '@/services/misc';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Switch, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
-import { apiClient } from '@/services/api';
+import { RequireAuth } from '@/components/route-guards';
+
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-export default function SubscriptionsScreen() {
+function SubscriptionsContent() {
   const insets = useSafeAreaInsets();
   const [subs, setSubs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,7 +18,7 @@ export default function SubscriptionsScreen() {
     setLoading(true);
     setError('');
     try {
-      const response = await apiClient.getSubscriptions();
+      const response = await getSubscriptions();
       setSubs(response.data?.items || []);
     } catch (e: any) {
       setError(e.response?.data?.message || 'Không thể tải danh sách cảnh báo');
@@ -32,7 +34,7 @@ export default function SubscriptionsScreen() {
   const handleToggle = async (id: string, current: boolean) => {
     try {
       setSubs(prev => prev.map(s => s.subscriptionId === id ? { ...s, isEnabled: !current } : s));
-      await apiClient.updateSubscription(id, { isEnabled: !current });
+      await updateSubscription(id, { isEnabled: !current });
     } catch {
       // revert on fail
       setSubs(prev => prev.map(s => s.subscriptionId === id ? { ...s, isEnabled: current } : s));
@@ -45,7 +47,7 @@ export default function SubscriptionsScreen() {
       { text: 'Huỷ', style: 'cancel' },
       { text: 'Xoá', style: 'destructive', onPress: async () => {
         try {
-          await apiClient.deleteSubscription(id);
+          await deleteSubscription(id);
           setSubs(prev => prev.filter(s => s.subscriptionId !== id));
         } catch {
           Alert.alert('Lỗi', 'Không thể xoá đăng ký');
@@ -112,6 +114,14 @@ export default function SubscriptionsScreen() {
         )}
       </ScrollView>
     </View>
+  );
+}
+
+export default function SubscriptionsScreen() {
+  return (
+    <RequireAuth>
+      <SubscriptionsContent />
+    </RequireAuth>
   );
 }
 

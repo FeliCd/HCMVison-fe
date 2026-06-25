@@ -85,7 +85,7 @@ export default function RegisterScreen() {
         {/* Brand Header */}
         <Animated.View entering={FadeInUp.duration(600).delay(100)} style={styles.header}>
           <Text style={styles.title}>Tạo tài khoản</Text>
-          <Text style={styles.subtitle}>Tham gia Mạng lưới HCMRainVision</Text>
+          <Text style={styles.subtitle}>Tham gia mạng lưới HCMVision</Text>
         </Animated.View>
 
         {/* Register Card */}

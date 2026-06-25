@@ -1,4 +1,6 @@
-import { apiClient } from '@/services/api';
+import { setUnauthorizedCallback, setToken, clearToken } from '@/services/core';
+import { login as apiLogin, getProfile, register as apiRegister } from '@/services/auth';
+
 import { User } from '@/types/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -49,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restoreSession();
 
     // Register 401 callback
-    apiClient.setUnauthorizedCallback(async () => {
+    setUnauthorizedCallback(async () => {
       await AsyncStorage.removeItem('user');
       setUser(null);
       router.replace('/login');
@@ -60,19 +62,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiClient.login(username, password);
+      const response = await apiLogin(username, password);
       const { token } = response.data as any;
-      await apiClient.setToken(token);
+      await setToken(token);
       
       // The backend login response doesn't contain the full user object, so we fetch it
-      const profileResponse = await apiClient.getProfile();
+      const profileResponse = await getProfile();
       const userData = profileResponse.data as User;
       
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
       
       if (userData.role === 'Admin') {
-        router.replace('/admin');
+        router.replace('/admin' as any);
       } else {
         router.replace('/(tabs)/explore');
       }
@@ -100,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      await apiClient.register(username, email, password);
+      await apiRegister(username, email, password);
       // After register, auto-login
       try {
         await login(username, password);
@@ -128,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [login]);
 
   const logout = useCallback(async () => {
-    await apiClient.clearToken();
+    await clearToken();
     await AsyncStorage.removeItem('user');
     setUser(null);
     router.replace('/login');
@@ -138,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUser = useCallback(async () => {
     try {
-      const profileResponse = await apiClient.getProfile();
+      const profileResponse = await getProfile();
       const userData = profileResponse.data as User;
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);

@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, TextInput, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
 import { useCamera } from '@/hooks/useCamera';
@@ -11,9 +11,16 @@ export default function CamerasScreen() {
   const { cameras, loading, error, getCameras } = useCamera();
   const [searchText, setSearchText] = useState('');
 
-  useEffect(() => {
-    getCameras(undefined, 1, 200);
-  }, [getCameras]);
+  const refreshCameras = useCallback(() => getCameras(undefined, 1, 200), [getCameras]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshCameras().catch(() => {});
+      const interval = setInterval(() => void refreshCameras().catch(() => {}), 15_000);
+
+      return () => clearInterval(interval);
+    }, [refreshCameras])
+  );
 
   const handleSearch = useCallback((text: string) => {
     setSearchText(text);

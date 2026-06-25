@@ -1,3 +1,5 @@
+import { getWards } from '@/services/location';
+import { getSubscriptions, createSubscription, deleteSubscription } from '@/services/misc';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { router } from 'expo-router';
 import {
@@ -14,8 +16,9 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icons';
+import { RequireAuth } from '@/components/route-guards';
 import { syncDeviceTokenAsync } from '@/services/NotificationManager';
-import { apiClient } from '@/services/api';
+
 import { AlertSubscription, Ward } from '@/types/api';
 
 const THRESHOLD_OPTIONS = [
@@ -58,7 +61,7 @@ function getSubscriptionId(subscription: AlertSubscription) {
   return subscription.subscriptionId || (subscription as any).id;
 }
 
-export default function PermissionNotificationScreen() {
+function PermissionNotificationContent() {
   const insets = useSafeAreaInsets();
   const [wards, setWards] = useState<Ward[]>([]);
   const [subscriptions, setSubscriptions] = useState<AlertSubscription[]>([]);
@@ -77,8 +80,8 @@ export default function PermissionNotificationScreen() {
 
     try {
       const [wardsResponse, subscriptionsResponse] = await Promise.all([
-        apiClient.getWards(),
-        apiClient.getSubscriptions(),
+        getWards(),
+        getSubscriptions(),
       ]);
 
       setWards(toArray<Ward>(wardsResponse.data));
@@ -151,7 +154,7 @@ export default function PermissionNotificationScreen() {
     try {
       // Native builds also sync the FCM token here. Web can still test subscription API.
       await syncDeviceTokenAsync({ requestPermission: Platform.OS !== 'web' });
-      await apiClient.createSubscription({
+      await createSubscription({
         wardId: selectedWardId,
         thresholdProbability,
       });
@@ -181,7 +184,7 @@ export default function PermissionNotificationScreen() {
     setMessage(null);
 
     try {
-      await apiClient.deleteSubscription(subscriptionId);
+      await deleteSubscription(subscriptionId);
       setMessage(`Đã xóa cảnh báo cho ${subscription.wardName || 'khu vực đã chọn'}.`);
       await loadNotificationSettings();
     } catch (deleteError) {
@@ -364,6 +367,14 @@ export default function PermissionNotificationScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
     </View>
+  );
+}
+
+export default function PermissionNotificationScreen() {
+  return (
+    <RequireAuth>
+      <PermissionNotificationContent />
+    </RequireAuth>
   );
 }
 

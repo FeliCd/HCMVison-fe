@@ -1,8 +1,12 @@
+import { getLatestWeather as apiGetLatestWeather, getWeatherLogs as apiGetWeatherLogs, getRainingCameras as apiGetRainingCameras, reportWeather as apiReportWeather } from '@/services/weather';
 import { useState, useCallback } from 'react';
-import { apiClient } from '@/services/api';
+import { useQueryClient } from '@tanstack/react-query';
+
+
 import { WeatherData, WeatherLog, RainingCamera } from '@/types/api';
 
 export const useWeather = () => {
+  const queryClient = useQueryClient();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [logs, setLogs] = useState<WeatherLog[]>([]);
   const [rainingCameras, setRainingCameras] = useState<RainingCamera[]>([]);
@@ -13,12 +17,16 @@ export const useWeather = () => {
     try {
       setLoading(true);
       setError(null);
-      // Backend api/weather/latest returns WeatherLog[]
-      const response = await apiClient.getLatestWeather();
-      // Since weather is WeatherData, but we don't have an endpoint for aggregate WeatherData,
-      // we'll update the component to handle this appropriately. Let's just set weather to null.
+      const data = await queryClient.fetchQuery({
+        queryKey: ['weather', 'latest'],
+        staleTime: 0,
+        queryFn: async () => {
+          const response = await apiGetLatestWeather();
+          return response.data;
+        },
+      });
       setWeather(null);
-      return response.data;
+      return data;
     } catch (err: any) {
       const message = err.response?.data?.message || 'Không thể tải dữ liệu thời tiết';
       setError(message);
@@ -26,46 +34,66 @@ export const useWeather = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryClient]);
 
-  const getWeatherLogs = useCallback(async (minutes = 180, limit = 100) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await apiClient.getWeatherLogs(minutes, limit);
-      const items = response.data?.data ?? [];
-      setLogs(items);
-      return items;
-    } catch (err: any) {
-      const message = err.response?.data?.message || 'Không thể tải lịch sử thời tiết';
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const getWeatherLogs = useCallback(
+    async (minutes = 180, limit = 100, onlyWithImages = false) => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await queryClient.fetchQuery({
+          queryKey: ['weather', 'logs', minutes, limit, onlyWithImages],
+          staleTime: 0,
+          queryFn: async () => {
+            const response = await apiGetWeatherLogs(minutes, limit, onlyWithImages);
+            return response.data;
+          },
+        });
+        const items = data.data ?? [];
+        setLogs(items);
+        return items;
+      } catch (err: any) {
+        const message = err.response?.data?.message || 'Không thể tải lịch sử thời tiết';
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [queryClient]
+  );
 
-  const getRainingCameras = useCallback(async (minutes = 30) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await apiClient.getRainingCameras(minutes);
-      const items = response.data?.data ?? [];
-      setRainingCameras(items);
-      return items;
-    } catch (err: any) {
-      const message = err.response?.data?.message || 'Không thể tải danh sách camera mưa';
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const getRainingCameras = useCallback(
+    async (minutes = 30) => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await queryClient.fetchQuery({
+          queryKey: ['weather', 'raining-cameras', minutes],
+          staleTime: 0,
+          queryFn: async () => {
+            const response = await apiGetRainingCameras(minutes);
+            return response.data;
+          },
+        });
+        const items = data.data ?? [];
+        setRainingCameras(items);
+        return items;
+      } catch (err: any) {
+        const message = err.response?.data?.message || 'Không thể tải danh sách camera mưa';
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [queryClient]
+  );
 
   const reportWeather = useCallback(
     async (data: { cameraId?: string; isRaining: boolean; note?: string }) => {
       try {
-        const response = await apiClient.reportWeather(data);
+        const response = await apiReportWeather(data);
         return response.data;
       } catch (err: any) {
         const message = err.response?.data?.message || 'Không thể gửi báo cáo thời tiết';

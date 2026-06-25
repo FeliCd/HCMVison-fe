@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
 import { useWeather } from '@/hooks/useWeather';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { formatRainLevel } from '@/utils/weather-display';
 
 export default function TrafficListScreen() {
   const insets = useSafeAreaInsets();
@@ -92,7 +93,7 @@ export default function TrafficListScreen() {
                           </View>
                         </View>
                         <Text style={styles.itemDesc}>
-                          {item.wardName ? `${item.wardName} • ` : ''}{item.isRaining ? `Mưa ${item.rainLevel} • ` : ''}Cập nhật: {item.timeAgo}
+                          {item.wardName ? `${item.wardName} • ` : ''}{item.isRaining ? `${formatRainLevel(item.rainLevel)} • ` : ''}Cập nhật: {item.timeAgo}
                         </Text>
                       </Pressable>
                     </Animated.View>
@@ -120,7 +121,7 @@ export default function TrafficListScreen() {
                           </View>
                         </View>
                         <Text style={styles.itemDesc}>
-                          {item.wardName ? `${item.wardName} • ` : ''}{item.isRaining ? `Mưa ${item.rainLevel} • ` : ''}Cập nhật: {item.timeAgo}
+                          {item.wardName ? `${item.wardName} • ` : ''}{item.isRaining ? `${formatRainLevel(item.rainLevel)} • ` : ''}Cập nhật: {item.timeAgo}
                         </Text>
                       </Pressable>
                     </Animated.View>

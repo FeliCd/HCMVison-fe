@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   Keyboard,
   Platform,
@@ -28,6 +28,7 @@ import { useCamera } from '@/hooks/useCamera';
 import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
 import { WeatherLog } from '@/types/api';
+import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -57,7 +58,7 @@ function toMapLocation(log: WeatherLog): MapLocation {
     address: log.districtName || log.wardName || log.cameraId,
     lat: log.latitude,
     lng: log.longitude,
-    status: `${log.isRaining ? `Mưa ${log.rainLevel}` : 'Không mưa'} - ${log.trafficLevel}`,
+    status: `${formatRainLevel(log.rainLevel)} - ${formatTrafficLevel(log.trafficLevel)}`,
     type,
     markerColor,
   };
@@ -198,8 +199,13 @@ export default function TabTwoScreen() {
   const iframeRef = useRef<any>(null);
 
   useEffect(() => {
-    getWeatherLogs(60, 500);
-    getCameras(undefined, 1, 1000);
+    // The map remains useful with its base tiles when the API is temporarily
+    // unavailable. Handle both startup requests so a network failure does not
+    // become an unhandled promise rejection in the app's error overlay.
+    void Promise.allSettled([
+      getWeatherLogs(60, 500),
+      getCameras(undefined, 1, 1000),
+    ]);
   }, [getWeatherLogs, getCameras]);
 
   useEffect(() => {
@@ -236,6 +242,18 @@ export default function TabTwoScreen() {
 
     setLocations(mergedLocations);
   }, [logs, cameras]);
+
+  const { rainingCount, jamCount } = useMemo(() => {
+    const latestLogsMap = new Map<string, WeatherLog>();
+    logs.forEach(log => {
+      if (!latestLogsMap.has(log.cameraId)) {
+        latestLogsMap.set(log.cameraId, log);
+      }
+    });
+    const rain = Array.from(latestLogsMap.values()).filter(log => log.isRaining).length;
+    const jam = Array.from(latestLogsMap.values()).filter(log => log.trafficLevel === 'jam' || log.trafficLevel === 'slow').length;
+    return { rainingCount: rain, jamCount: jam };
+  }, [logs]);
 
   const bottomBarHeight = 64 + insets.bottom;
   const fabsBottom = bottomBarHeight + 16;
@@ -385,7 +403,7 @@ export default function TabTwoScreen() {
                 }
               }}
             />
-            {searchText.length > 0 ? (
+            {searchText.length > 0 && (
               <Pressable
                 style={styles.clearButton}
                 onPress={() => {
@@ -395,10 +413,6 @@ export default function TabTwoScreen() {
                 }}
               >
                 <Icon name="close" color={colors.textMuted} size={18} />
-              </Pressable>
-            ) : (
-              <Pressable style={[styles.micButton, { borderColor: colors.border }]}>
-                <Icon name="mic" color={colors.primary} size={18} />
               </Pressable>
             )}
           </View>
@@ -433,14 +447,14 @@ export default function TabTwoScreen() {
           <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
             <Icon name="rainy" color={colors.danger} size={14} />
             <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
-              Đang mưa: {locations.filter(l => l.type === 'rain' || l.type === 'combine').length} camera
+              Đang mưa: {rainingCount} camera
             </Text>
           </View>
 
           <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
             <Icon name="traffic" color={colors.danger} size={14} />
             <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
-              Kẹt xe/chậm: {locations.filter(l => l.type === 'traffic' || l.type === 'combine').length} điểm
+              Kẹt xe/chậm: {jamCount} điểm
             </Text>
           </View>
         </ScrollView>
@@ -490,7 +504,6 @@ export default function TabTwoScreen() {
       <View style={[styles.infoPanel, { bottom: infoPanelBottom, backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
         <Animated.View style={[styles.infoPanelDot, pulseDotStyle]} />
         <View style={styles.infoPanelTextContainer}>
-          <Text style={[styles.infoPanelTitle, { color: colors.text }]}>Cập nhật 5 phút trước</Text>
           <Text style={[styles.infoPanelSubtitle, { color: colors.textMuted }]}>Nguồn: Cổng TTGT TP.HCM</Text>
         </View>
       </View>
@@ -555,14 +568,6 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: { outlineStyle: 'none' as any },
     }),
-  },
-  micButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
   },
   clearButton: {
     width: 32,
@@ -696,12 +701,7 @@ const styles = StyleSheet.create({
   infoPanelTextContainer: {
     flex: 1,
   },
-  infoPanelTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
   infoPanelSubtitle: {
     fontSize: 10,
-    marginTop: 2,
   },
 });

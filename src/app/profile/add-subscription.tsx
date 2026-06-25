@@ -1,8 +1,11 @@
+import { getDistricts, getWardsByDistrict } from '@/services/location';
+import { createSubscription } from '@/services/misc';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
+<<<<<<< HEAD
 import { apiClient } from '@/services/api';
 import { District, Ward } from '@/types/api';
 
@@ -26,8 +29,12 @@ function toArray<T>(payload: unknown): T[] {
 
   return [];
 }
+=======
+import { RequireAuth } from '@/components/route-guards';
+>>>>>>> 31a032803982e8d4df712da53c55cf25ecd0a7d7
 
-export default function AddSubscriptionScreen() {
+
+function AddSubscriptionContent() {
   const insets = useSafeAreaInsets();
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -43,12 +50,17 @@ export default function AddSubscriptionScreen() {
 
   const fetchDistricts = async () => {
     try {
+<<<<<<< HEAD
       const response = await apiClient.getDistricts();
       setDistricts(
         toArray<District>(response.data).filter(
           (district) => typeof district.name === 'string' && district.name.trim().length > 0
         )
       );
+=======
+      const response = await getDistricts();
+      setDistricts(response.data || []);
+>>>>>>> 31a032803982e8d4df712da53c55cf25ecd0a7d7
     } catch {
       Alert.alert('Lỗi', 'Không thể tải danh sách quận');
     } finally {
@@ -62,6 +74,7 @@ export default function AddSubscriptionScreen() {
     setWards([]);
     setLoading(true);
     try {
+<<<<<<< HEAD
       const response = await apiClient.getWardsByDistrict(name);
       setWards(
         toArray<Ward>(response.data).filter(
@@ -72,6 +85,10 @@ export default function AddSubscriptionScreen() {
             ward.name.trim().length > 0
         )
       );
+=======
+      const response = await getWardsByDistrict(name);
+      setWards(response.data || []);
+>>>>>>> 31a032803982e8d4df712da53c55cf25ecd0a7d7
     } catch {
       Alert.alert('Lỗi', 'Không thể tải danh sách phường');
     } finally {
@@ -83,7 +100,7 @@ export default function AddSubscriptionScreen() {
     if (!selectedWard) return;
     setSubmitting(true);
     try {
-      await apiClient.createSubscription({ wardId: selectedWard, thresholdProbability: threshold });
+      await createSubscription({ wardId: selectedWard, thresholdProbability: threshold });
       Alert.alert('Thành công', 'Đã thêm cảnh báo khu vực mới');
       router.back();
     } catch (e: any) {
@@ -170,6 +187,14 @@ export default function AddSubscriptionScreen() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+export default function AddSubscriptionScreen() {
+  return (
+    <RequireAuth>
+      <AddSubscriptionContent />
+    </RequireAuth>
   );
 }
 
