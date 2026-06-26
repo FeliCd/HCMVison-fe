@@ -43,6 +43,7 @@ export interface Camera {
   longitude: number;
   wardId?: string;
   wardName?: string;
+  districtName?: string;
   status: 'Active' | 'Inactive' | 'Offline';
   streamUrl?: string;
   streamType?: string;

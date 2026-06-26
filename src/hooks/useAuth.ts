@@ -1,5 +1,7 @@
 import { setUnauthorizedCallback, setToken, clearToken } from '@/services/core';
 import { login as apiLogin, getProfile, register as apiRegister } from '@/services/auth';
+import { revokeCurrentDeviceTokenAsync, syncDeviceTokenAsync } from '@/services/NotificationManager';
+import { syncCurrentUserLocationAsync } from '@/services/location';
 
 import { User } from '@/types/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -72,6 +74,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
+
+      void syncDeviceTokenAsync({ requestPermission: false }).catch((syncError) => {
+        console.warn('Failed to sync push token after login', syncError);
+      });
+
+      void syncCurrentUserLocationAsync({ requestPermission: false }).catch((syncError) => {
+        console.warn('Failed to sync location after login', syncError);
+      });
       
       if (userData.role === 'Admin') {
         router.replace('/admin' as any);
@@ -130,6 +140,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [login]);
 
   const logout = useCallback(async () => {
+    try {
+      await revokeCurrentDeviceTokenAsync();
+    } catch (logoutError) {
+      console.warn('Failed to revoke push token during logout', logoutError);
+    }
+
     await clearToken();
     await AsyncStorage.removeItem('user');
     setUser(null);

@@ -1,5 +1,6 @@
 import { saveDeviceToken, deleteDeviceToken } from '@/services/auth';
 import { getToken } from '@/services/core';
+import { syncCurrentUserLocationAsync } from '@/services/location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
@@ -209,6 +210,10 @@ export function addAuthenticatedAppStateSyncListener() {
     // App close/kill is not logout. We only refresh the registration when the app becomes active again.
     void syncDeviceTokenAsync({ requestPermission: false }).catch((error) => {
       console.warn('Failed to refresh FCM token on app resume.', error);
+    });
+
+    void syncCurrentUserLocationAsync({ requestPermission: false }).catch((error) => {
+      console.warn('Failed to refresh current location on app resume.', error);
     });
   });
 }

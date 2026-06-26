@@ -1,4 +1,22 @@
 import { apiCore } from './core';
+import * as ExpoLocation from 'expo-location';
+
+type SyncLocationOptions = {
+  requestPermission?: boolean;
+};
+
+type SyncedLocation = {
+  latitude: number;
+  longitude: number;
+};
+
+export type ResolvedWard = {
+  wardId: string;
+  wardName: string;
+  districtName?: string;
+  matchType: 'contains' | 'nearest';
+  distanceMeters: number;
+};
 
 export async function getWards() {
   return apiCore.request<any[]>({ method: 'GET', url: '/Location/wards', authPolicy: 'public' });
@@ -13,7 +31,64 @@ export async function getDistricts() {
 }
 
 export async function getWardsByDistrict(districtName: string) {
-  return apiCore.request<any[]>({ method: 'GET', url: `/Location/wards/by-district/${districtName}`, authPolicy: 'public' });
+  return apiCore.request<any[]>({
+    method: 'GET',
+    url: `/Location/wards/by-district/${encodeURIComponent(districtName)}`,
+    authPolicy: 'public',
+  });
+}
+
+export async function resolveWardByCoordinates(latitude: number, longitude: number) {
+  const response = await apiCore.request<ResolvedWard>({
+    method: 'GET',
+    url: '/Location/resolve-ward',
+    params: { latitude, longitude },
+    authPolicy: 'public',
+  });
+  return response.data;
+}
+
+export async function updateMyLocation(data: SyncedLocation) {
+  return apiCore.request({
+    method: 'POST',
+    url: '/Auth/location',
+    data,
+    authPolicy: 'required',
+  });
+}
+
+export async function syncCurrentUserLocationAsync(options: SyncLocationOptions = {}) {
+  const currentPermission = await ExpoLocation.getForegroundPermissionsAsync();
+  let permissionGranted = currentPermission.status === 'granted';
+
+  if (!permissionGranted && options.requestPermission) {
+    const requestedPermission = await ExpoLocation.requestForegroundPermissionsAsync();
+    permissionGranted = requestedPermission.status === 'granted';
+  }
+
+  if (!permissionGranted) {
+    return null;
+  }
+
+  const currentLocation =
+    await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.Balanced })
+      .catch(() => ExpoLocation.getLastKnownPositionAsync({}));
+
+  if (!currentLocation) {
+    return null;
+  }
+
+  const location = {
+    latitude: currentLocation.coords.latitude,
+    longitude: currentLocation.coords.longitude,
+  };
+
+  const authToken = await apiCore.getToken();
+  if (authToken) {
+    await updateMyLocation(location);
+  }
+
+  return location;
 }
 
 export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
