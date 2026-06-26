@@ -35,6 +35,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/with-open-rain-alert-intent",
       [
         "expo-splash-screen",
         {

@@ -112,7 +112,6 @@ function SubscriptionsContent() {
                 <View style={styles.cardInfo}>
                   <Text style={styles.wardName}>{item.wardName || 'Khu vực'}</Text>
                   <Text style={styles.districtName}>{item.districtName || 'Thành phố'}</Text>
-                  <Text style={styles.thresholdText}>Ngưỡng mưa: {Math.round(item.thresholdProbability * 100)}%</Text>
                 </View>
                 <Switch 
                   value={item.isEnabled} 
@@ -162,7 +161,6 @@ const styles = StyleSheet.create({
   cardInfo: { flex: 1 },
   wardName: { fontSize: 16, fontWeight: '700', color: '#d4e4fa' },
   districtName: { fontSize: 14, color: '#849492', marginTop: 2 },
-  thresholdText: { fontSize: 13, color: '#00f2ea', marginTop: 8 },
   cardActions: { flexDirection: 'row', justifyContent: 'flex-end' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 8 },
   deleteText: { color: '#fca5a5', fontSize: 13 },

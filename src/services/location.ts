@@ -1,5 +1,7 @@
 import { apiCore } from './core';
+import { asArray, asNumber, asString, field } from './normalizers';
 import * as ExpoLocation from 'expo-location';
+import type { District, Ward } from '@/types/api';
 
 type SyncLocationOptions = {
   requestPermission?: boolean;
@@ -18,8 +20,60 @@ export type ResolvedWard = {
   distanceMeters: number;
 };
 
+type RawDistrict = string | (Partial<District> & { districtId?: string; districtName?: string });
+type RawWard = Partial<Ward> & { wardId?: string; wardName?: string };
+
+function normalizeDistrict(raw: RawDistrict): District | null {
+  if (typeof raw === 'string') {
+    const name = raw.trim();
+    return name ? { id: name, name, latitude: 0, longitude: 0 } : null;
+  }
+
+  const name = asString(field(raw, 'name', 'districtName')).trim();
+  const id = asString(field(raw, 'id', 'districtId'), name).trim();
+
+  return id && name
+    ? {
+        id,
+        name,
+        latitude: asNumber(field(raw, 'latitude')),
+        longitude: asNumber(field(raw, 'longitude')),
+      }
+    : null;
+}
+
+function normalizeWard(raw: RawWard): Ward | null {
+  const id = asString(field(raw, 'id', 'wardId')).trim();
+  const name = asString(field(raw, 'name', 'wardName')).trim();
+  const districtName = asString(field(raw, 'districtName')).trim();
+
+  return id && name
+    ? {
+        id,
+        name,
+        districtId: asString(field(raw, 'districtId'), districtName).trim(),
+        districtName,
+        latitude: asNumber(field(raw, 'latitude')),
+        longitude: asNumber(field(raw, 'longitude')),
+      }
+    : null;
+}
+
+function normalizeDistricts(payload: unknown): District[] {
+  return asArray<RawDistrict>(payload)
+    .map(normalizeDistrict)
+    .filter((district): district is District => Boolean(district));
+}
+
+function normalizeWards(payload: unknown): Ward[] {
+  return asArray<RawWard>(payload)
+    .map(normalizeWard)
+    .filter((ward): ward is Ward => Boolean(ward));
+}
+
 export async function getWards() {
-  return apiCore.request<any[]>({ method: 'GET', url: '/Location/wards', authPolicy: 'public' });
+  const response = await apiCore.request({ method: 'GET', url: '/Location/wards', authPolicy: 'public' });
+  return { ...response, data: normalizeWards(response.data) };
 }
 
 export async function getWardById(id: string) {
@@ -27,15 +81,17 @@ export async function getWardById(id: string) {
 }
 
 export async function getDistricts() {
-  return apiCore.request<any[]>({ method: 'GET', url: '/Location/districts', authPolicy: 'public' });
+  const response = await apiCore.request({ method: 'GET', url: '/Location/districts', authPolicy: 'public' });
+  return { ...response, data: normalizeDistricts(response.data) };
 }
 
 export async function getWardsByDistrict(districtName: string) {
-  return apiCore.request<any[]>({
+  const response = await apiCore.request({
     method: 'GET',
     url: `/Location/wards/by-district/${encodeURIComponent(districtName)}`,
     authPolicy: 'public',
   });
+  return { ...response, data: normalizeWards(response.data) };
 }
 
 export async function resolveWardByCoordinates(latitude: number, longitude: number) {
