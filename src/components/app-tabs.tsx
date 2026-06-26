@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   tabBarGlass: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(25, 30, 40, 0.88)',
   },
   tabBarContent: {

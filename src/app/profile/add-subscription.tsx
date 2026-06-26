@@ -5,13 +5,39 @@ import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
+<<<<<<< HEAD
+import { apiClient } from '@/services/api';
+import { District, Ward } from '@/types/api';
+
+function toArray<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) {
+    return payload as T[];
+  }
+
+  const value = payload as any;
+  if (Array.isArray(value?.data)) {
+    return value.data as T[];
+  }
+
+  if (Array.isArray(value?.items)) {
+    return value.items as T[];
+  }
+
+  if (Array.isArray(value?.data?.items)) {
+    return value.data.items as T[];
+  }
+
+  return [];
+}
+=======
 import { RequireAuth } from '@/components/route-guards';
+>>>>>>> 31a032803982e8d4df712da53c55cf25ecd0a7d7
 
 
 function AddSubscriptionContent() {
   const insets = useSafeAreaInsets();
-  const [districts, setDistricts] = useState<any[]>([]);
-  const [wards, setWards] = useState<any[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [wards, setWards] = useState<Ward[]>([]);
   const [selectedDist, setSelectedDist] = useState<string | null>(null);
   const [selectedWard, setSelectedWard] = useState<string | null>(null);
   const [threshold, setThreshold] = useState(0.5); // 50%
@@ -24,8 +50,17 @@ function AddSubscriptionContent() {
 
   const fetchDistricts = async () => {
     try {
+<<<<<<< HEAD
+      const response = await apiClient.getDistricts();
+      setDistricts(
+        toArray<District>(response.data).filter(
+          (district) => typeof district.name === 'string' && district.name.trim().length > 0
+        )
+      );
+=======
       const response = await getDistricts();
       setDistricts(response.data || []);
+>>>>>>> 31a032803982e8d4df712da53c55cf25ecd0a7d7
     } catch {
       Alert.alert('Lỗi', 'Không thể tải danh sách quận');
     } finally {
@@ -39,8 +74,21 @@ function AddSubscriptionContent() {
     setWards([]);
     setLoading(true);
     try {
+<<<<<<< HEAD
+      const response = await apiClient.getWardsByDistrict(name);
+      setWards(
+        toArray<Ward>(response.data).filter(
+          (ward) =>
+            typeof ward.id === 'string' &&
+            ward.id.trim().length > 0 &&
+            typeof ward.name === 'string' &&
+            ward.name.trim().length > 0
+        )
+      );
+=======
       const response = await getWardsByDistrict(name);
       setWards(response.data || []);
+>>>>>>> 31a032803982e8d4df712da53c55cf25ecd0a7d7
     } catch {
       Alert.alert('Lỗi', 'Không thể tải danh sách phường');
     } finally {
@@ -75,15 +123,19 @@ function AddSubscriptionContent() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.label}>1. Chọn Quận / Huyện</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-          {districts.map(d => (
-            <Pressable 
-              key={d.id} 
-              style={[styles.chip, selectedDist === d.id && styles.chipActive]}
-              onPress={() => selectDistrict(d.id, d.name)}
-            >
-              <Text style={[styles.chipText, selectedDist === d.id && styles.chipTextActive]}>{d.name}</Text>
-            </Pressable>
-          ))}
+          {districts.map(d => {
+            const districtKey = d.id || d.name;
+
+            return (
+              <Pressable 
+                key={districtKey} 
+                style={[styles.chip, selectedDist === districtKey && styles.chipActive]}
+                onPress={() => selectDistrict(districtKey, d.name)}
+              >
+                <Text style={[styles.chipText, selectedDist === districtKey && styles.chipTextActive]}>{d.name}</Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
 
         <Text style={[styles.label, { marginTop: 24 }]}>2. Chọn Phường / Xã</Text>
@@ -91,15 +143,19 @@ function AddSubscriptionContent() {
           <ActivityIndicator size="small" color="#00f2ea" style={{ marginTop: 12, alignSelf: 'flex-start' }} />
         ) : wards.length > 0 ? (
           <View style={styles.grid}>
-            {wards.map(w => (
-              <Pressable 
-                key={w.id} 
-                style={[styles.gridItem, selectedWard === w.id && styles.gridItemActive]}
-                onPress={() => setSelectedWard(w.id)}
-              >
-                <Text style={[styles.gridText, selectedWard === w.id && styles.gridTextActive]}>{w.name}</Text>
-              </Pressable>
-            ))}
+            {wards.map(w => {
+              const wardKey = w.id || w.name;
+
+              return (
+                <Pressable 
+                  key={wardKey} 
+                  style={[styles.gridItem, selectedWard === w.id && styles.gridItemActive]}
+                  onPress={() => setSelectedWard(w.id)}
+                >
+                  <Text style={[styles.gridText, selectedWard === w.id && styles.gridTextActive]}>{w.name}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         ) : (
           <Text style={styles.emptyText}>Vui lòng chọn Quận/Huyện trước</Text>
