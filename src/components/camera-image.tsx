@@ -17,7 +17,7 @@ export function CameraImage({ sources, style, fallback, accessibilityLabel, refr
 
   useEffect(() => {
     setHasFailed(false);
-  }, [refreshKey, sources.weatherImageUrl]);
+  }, [refreshKey]);
 
   if (!sources.weatherImageUrl || hasFailed) {
     return <>{fallback}</>;
@@ -25,12 +25,12 @@ export function CameraImage({ sources, style, fallback, accessibilityLabel, refr
 
   return (
     <Image
-      key={`weather:${sources.weatherImageUrl}:${refreshKey}`}
+      key={`live:${sources.weatherImageUrl}:${refreshKey}`}
       source={{ uri: sources.weatherImageUrl }}
       style={style}
       contentFit="cover"
       cachePolicy="none"
-      recyclingKey={`weather:${sources.weatherImageUrl}:${refreshKey}`}
+      recyclingKey={`live:${sources.weatherImageUrl}:${refreshKey}`}
       transition={180}
       accessibilityLabel={accessibilityLabel}
       onError={() => {
