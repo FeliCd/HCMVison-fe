@@ -45,21 +45,14 @@ export function getCameraImageSources(
   camera?: Camera | null,
   weather?: WeatherLog | null
 ): CameraImageSources {
-  const weatherImageUrl =
-    weather?.imageUrl &&
-    !weather.imageDeletedAtUtc &&
-    !isExpired(weather.imageExpiresAtUtc)
-      ? weather.imageUrl
-      : undefined;
-
-  // Nếu không có ảnh thời tiết từ AI, dùng ảnh live từ streamUrl (đổi sang https)
-  let finalImageUrl = weatherImageUrl;
-  if (!finalImageUrl && camera?.streamUrl) {
-    finalImageUrl = camera.streamUrl.replace(/^http:\/\//i, 'https://');
-  }
+  // Luôn dùng ảnh live từ camera bộ giao thông (refresh mỗi 15s)
+  // WeatherLog chỉ cung cấp data phân tích (mưa, kẹt xe...), không dùng ảnh snapshot AI
+  const liveImageUrl = camera?.streamUrl
+    ? camera.streamUrl.replace(/^http:\/\//i, 'https://')
+    : undefined;
 
   return {
-    weatherImageUrl: finalImageUrl,
+    weatherImageUrl: liveImageUrl,
   };
 }
 
