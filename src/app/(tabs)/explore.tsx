@@ -461,17 +461,30 @@ export default function TabTwoScreen() {
 
         <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
           {(['rain', 'traffic', 'combine'] as const).map((seg) => {
-            const labels = { rain: 'Mưa', traffic: 'Giao thông', combine: 'Kết hợp' };
             const isActive = activeSegment === seg;
+            const iconColor = isActive ? colors.primary : colors.textMuted;
+            
+            let iconComponent;
+            if (seg === 'rain') {
+              iconComponent = <Icon name="rainy" color={iconColor} size={18} />;
+            } else if (seg === 'traffic') {
+              iconComponent = <Icon name="traffic" color={iconColor} size={18} />;
+            } else {
+              iconComponent = (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Icon name="rainy" color={iconColor} size={15} />
+                  <Icon name="traffic" color={iconColor} size={15} />
+                </View>
+              );
+            }
+
             return (
               <Pressable
                 key={seg}
                 onPress={() => setActiveSegment(seg)}
                 style={[styles.segmentBtn, isActive && { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
-                <Text style={[styles.segmentText, { color: colors.textMuted }, isActive && { color: colors.primary, fontWeight: '700' }]}>
-                  {labels[seg]}
-                </Text>
+                {iconComponent}
               </Pressable>
             );
           })}
@@ -479,17 +492,7 @@ export default function TabTwoScreen() {
       </View>
 
       <View style={[styles.fabsContainer, { bottom: fabsBottom }]}>
-        <Pressable style={[styles.fabItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Icon name="map" color={colors.text} size={20} />
-        </Pressable>
 
-        <Pressable style={[styles.fabItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Icon name="tune" color={colors.text} size={20} />
-        </Pressable>
-
-        <Pressable style={[styles.fabItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Icon name="refresh" color={colors.text} size={20} />
-        </Pressable>
 
         <AnimatedPressable
           style={[styles.fabItem, styles.fabLocation, locStyle, { backgroundColor: colors.primary }]}

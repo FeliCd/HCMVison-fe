@@ -5,7 +5,7 @@ import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
-<<<<<<< HEAD
+import { RequireAuth } from '@/components/route-guards';
 import { apiClient } from '@/services/api';
 import { District, Ward } from '@/types/api';
 
@@ -29,9 +29,6 @@ function toArray<T>(payload: unknown): T[] {
 
   return [];
 }
-=======
-import { RequireAuth } from '@/components/route-guards';
->>>>>>> 31a032803982e8d4df712da53c55cf25ecd0a7d7
 
 
 function AddSubscriptionContent() {
@@ -50,17 +47,12 @@ function AddSubscriptionContent() {
 
   const fetchDistricts = async () => {
     try {
-<<<<<<< HEAD
       const response = await apiClient.getDistricts();
       setDistricts(
         toArray<District>(response.data).filter(
           (district) => typeof district.name === 'string' && district.name.trim().length > 0
         )
       );
-=======
-      const response = await getDistricts();
-      setDistricts(response.data || []);
->>>>>>> 31a032803982e8d4df712da53c55cf25ecd0a7d7
     } catch {
       Alert.alert('Lỗi', 'Không thể tải danh sách quận');
     } finally {
@@ -74,7 +66,6 @@ function AddSubscriptionContent() {
     setWards([]);
     setLoading(true);
     try {
-<<<<<<< HEAD
       const response = await apiClient.getWardsByDistrict(name);
       setWards(
         toArray<Ward>(response.data).filter(
@@ -85,10 +76,6 @@ function AddSubscriptionContent() {
             ward.name.trim().length > 0
         )
       );
-=======
-      const response = await getWardsByDistrict(name);
-      setWards(response.data || []);
->>>>>>> 31a032803982e8d4df712da53c55cf25ecd0a7d7
     } catch {
       Alert.alert('Lỗi', 'Không thể tải danh sách phường');
     } finally {

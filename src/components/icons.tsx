@@ -58,7 +58,9 @@ export type IconName =
   | 'settings_brightness'
   | 'view_list'
   | 'image'
-  | 'wifi';
+  | 'wifi'
+  | 'location'
+  | 'star';
 
 interface IconProps {
   name: IconName;
@@ -537,6 +539,18 @@ export function Icon({ name, color = '#ffffff', size = 24, style }: IconProps) {
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
           <Path d="M5 13a10 10 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0M2 10a15 15 0 0 1 20 0M12 20h.01" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
+      );
+    case 'location':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" fill={color} />
+        </Svg>
+      );
+    case 'star':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>
+          <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill={color} />
         </Svg>
       );
     default:

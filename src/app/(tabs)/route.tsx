@@ -1,6 +1,8 @@
-import { geocodeAddress, getOSRMRoutes } from '@/services/location';
+import { geocodeAddress, getOSRMRoutes, searchAddresses, AddressSuggestion } from '@/services/location';
 import { checkRoute } from '@/services/weather';
-import React, { useState, useEffect, useRef } from 'react';
+import { getCameras } from '@/services/camera';
+import { getWeatherLogs } from '@/services/weather';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,15 +13,20 @@ import {
   ActivityIndicator,
   Keyboard,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInUp, Layout } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp, FadeOut, Layout } from 'react-native-reanimated';
 import { WebView } from 'react-native-webview';
+import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import * as Location from 'expo-location';
 
 import { Icon } from '@/components/icons';
 
 import { useTheme } from '@/hooks/useTheme';
+import { CameraWithWeather, mergeCamerasWithWeather } from '@/utils/camera-weather';
+import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
 interface RouteData {
   id: string;
@@ -30,6 +37,7 @@ interface RouteData {
   warnings: any[];
   badTrafficWarnings: any[];
   coordinates: {lat: number; lng: number}[];
+  cameras?: CameraWithWeather[];
 }
 
 const mapHtml = (isDark: boolean) => `
@@ -127,11 +135,89 @@ export default function RouteScreen() {
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [camerasLoading, setCamerasLoading] = useState(false);
+
+  const currentRoute = routes.find((r) => r.id === selectedRouteId);
+  const routeCameras = currentRoute?.cameras || [];
+
+  // Autocomplete state
+  const [fromSuggestions, setFromSuggestions] = useState<AddressSuggestion[]>([]);
+  const [toSuggestions, setToSuggestions] = useState<AddressSuggestion[]>([]);
+  const [activeInput, setActiveInput] = useState<'from' | 'to' | null>(null);
+  const [fromCoord, setFromCoord] = useState<{ lat: number; lng: number } | null>(null);
+  const [toCoord, setToCoord] = useState<{ lat: number; lng: number } | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const POPULAR_PLACES: AddressSuggestion[] = [
+    { shortName: 'Chợ Bến Thành', displayName: 'Chợ Bến Thành, Quận 1, TP.HCM', lat: 10.7725, lng: 106.6981 },
+    { shortName: 'Phú Mỹ Hưng', displayName: 'Phú Mỹ Hưng, Quận 7, TP.HCM', lat: 10.7285, lng: 106.7220 },
+    { shortName: 'Sân bay Tân Sơn Nhất', displayName: 'Sân bay Tân Sơn Nhất, Tân Bình, TP.HCM', lat: 10.8184, lng: 106.6588 },
+    { shortName: 'Đại học Bách Khoa', displayName: 'ĐH Bách Khoa, Quận 10, TP.HCM', lat: 10.7731, lng: 106.6600 },
+    { shortName: 'Bitexco Financial Tower', displayName: 'Bitexco Financial Tower, Quận 1, TP.HCM', lat: 10.7716, lng: 106.7042 },
+    { shortName: 'Vinhomes Central Park', displayName: 'Vinhomes Central Park, Bình Thạnh, TP.HCM', lat: 10.7955, lng: 106.7220 },
+  ];
+
+  const debouncedSearch = useCallback((text: string, field: 'from' | 'to') => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(async () => {
+      if (text.trim().length < 2) {
+        field === 'from' ? setFromSuggestions([]) : setToSuggestions([]);
+        return;
+      }
+      const results = await searchAddresses(text);
+      if (field === 'from') {
+        setFromSuggestions(results);
+      } else {
+        setToSuggestions(results);
+      }
+    }, 300);
+  }, []);
+
+  const handleFromChange = (text: string) => {
+    setFrom(text);
+    setFromCoord(null); // clear cached coord when user edits
+    debouncedSearch(text, 'from');
+  };
+
+  const handleToChange = (text: string) => {
+    setTo(text);
+    setToCoord(null);
+    debouncedSearch(text, 'to');
+  };
+
+  const handleSelectSuggestion = (suggestion: AddressSuggestion, field: 'from' | 'to') => {
+    if (field === 'from') {
+      setFrom(suggestion.shortName);
+      setFromCoord({ lat: suggestion.lat, lng: suggestion.lng });
+      setFromSuggestions([]);
+    } else {
+      setTo(suggestion.shortName);
+      setToCoord({ lat: suggestion.lat, lng: suggestion.lng });
+      setToSuggestions([]);
+    }
+    setActiveInput(null);
+  };
 
   const handleSwap = () => {
     const temp = from;
+    const tempCoord = fromCoord;
     setFrom(to);
+    setFromCoord(toCoord);
     setTo(temp);
+    setToCoord(tempCoord);
+  };
+
+  // Calculate distance between two coordinates (Haversine formula) in meters
+  const getDistanceFromLatLng = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   };
 
   const handleSearch = async () => {
@@ -142,19 +228,21 @@ export default function RouteScreen() {
 
     Keyboard.dismiss();
     setLoading(true);
+    setCamerasLoading(true);
     setErrorMsg('');
     setRoutes([]);
     setSelectedRouteId(null);
 
     try {
-      let startCoord = null;
-      let endCoord = null;
+      let startCoord = fromCoord;
+      let endCoord = toCoord;
 
       if (from.toLowerCase() === 'vị trí hiện tại' || from.toLowerCase() === 'my location') {
         let { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           setErrorMsg('Vui lòng cấp quyền vị trí để dùng "Vị trí hiện tại"');
           setLoading(false);
+          setCamerasLoading(false);
           return;
         }
         
@@ -169,37 +257,47 @@ export default function RouteScreen() {
         if (!location) {
           setErrorMsg('Không thể lấy được vị trí hiện tại của thiết bị.');
           setLoading(false);
+          setCamerasLoading(false);
           return;
         }
         startCoord = { lat: location.coords.latitude, lng: location.coords.longitude };
-      } else {
+      } else if (!startCoord) {
         startCoord = await geocodeAddress(from);
         if (!startCoord) {
           setErrorMsg(`Không tìm thấy địa chỉ: ${from}`);
           setLoading(false);
+          setCamerasLoading(false);
           return;
         }
       }
 
-      endCoord = await geocodeAddress(to);
       if (!endCoord) {
-        setErrorMsg(`Không tìm thấy địa chỉ: ${to}`);
-        setLoading(false);
-        return;
+        endCoord = await geocodeAddress(to);
+        if (!endCoord) {
+          setErrorMsg(`Không tìm thấy địa chỉ: ${to}`);
+          setLoading(false);
+          setCamerasLoading(false);
+          return;
+        }
       }
 
-      const osrmData = await getOSRMRoutes(
-        startCoord.lng,
-        startCoord.lat,
-        endCoord.lng,
-        endCoord.lat
-      );
+      // Fetch cameras & weather logs in parallel with the route request
+      const [cameraRes, weatherRes, osrmData] = await Promise.all([
+        getCameras(undefined, undefined, 1, 1000).catch(() => null),
+        getWeatherLogs(180, 500, false).catch(() => null),
+        getOSRMRoutes(startCoord.lng, startCoord.lat, endCoord.lng, endCoord.lat),
+      ]);
 
       if (!osrmData || !osrmData.routes || osrmData.routes.length === 0) {
         setErrorMsg('Không tìm thấy tuyến đường nào khả dụng');
         setLoading(false);
+        setCamerasLoading(false);
         return;
       }
+
+      const allCamerasWithWeather = cameraRes?.data?.data
+        ? mergeCamerasWithWeather(cameraRes.data.data, weatherRes?.data?.data || [])
+        : [];
 
       const loadedRoutes: RouteData[] = [];
       
@@ -212,33 +310,72 @@ export default function RouteScreen() {
         const routePoints = coords.map((c: any) => ({ lat: c[1], lng: c[0] }));
         const leafletCoords = coords.map((c: any) => ({ lat: c[1], lng: c[0] }));
 
-        try {
-          const checkRes = await checkRoute({ routePoints });
-          const safetyData = checkRes.data;
+        // Filter cameras within 500m of this specific route
+        const sampledCoords = leafletCoords.filter((_, idx) => idx % 5 === 0);
+        const routeCams = allCamerasWithWeather.filter(cam => {
+          if (!cam.latitude || !cam.longitude) return false;
+          return sampledCoords.some(coord =>
+            getDistanceFromLatLng(cam.latitude, cam.longitude, coord.lat, coord.lng) < 500
+          );
+        });
 
-          const distanceKm = (routeObj.distance / 1000).toFixed(1);
-          const durationMin = Math.round(routeObj.duration / 60).toString();
-          
-          let summaryText = 'Tuyến đường thay thế';
-          if (routeObj.legs && routeObj.legs.length > 0 && routeObj.legs[0].summary) {
-            summaryText = `Qua ${routeObj.legs[0].summary}`;
-          } else if (i === 0) {
-            summaryText = 'Tuyến đường nhanh nhất';
+        // Determine warnings & safety directly from the route's camera metrics!
+        const routeHasJam = routeCams.some(cam => cam.trafficLevel === 'jam');
+        const routeHasSlow = routeCams.some(cam => cam.trafficLevel === 'slow');
+        const routeHasRain = routeCams.some(cam => cam.isRaining);
+
+        let finalIsSafe = true;
+        let routeWarnings: any[] = [];
+        let routeBadTrafficWarnings: any[] = [];
+
+        if (routeCams.length > 0) {
+          if (routeHasRain) {
+            const rainCam = routeCams.find(cam => cam.isRaining);
+            const levelText = formatRainLevel(rainCam?.rainLevel).toLowerCase();
+            routeWarnings.push({ reason: `Mưa phát hiện qua camera: ${rainCam?.name} (${levelText})` });
           }
 
-          loadedRoutes.push({
-            id: `route-${i}`,
-            distanceKm,
-            durationMin,
-            summary: summaryText,
-            isSafe: safetyData.isRouteSafe,
-            warnings: safetyData.warnings || [],
-            badTrafficWarnings: safetyData.badTrafficWarnings || [],
-            coordinates: leafletCoords,
-          });
-        } catch (err) {
-          console.warn('Check route safety failed for a route', err);
+          if (routeHasJam) {
+            routeBadTrafficWarnings.push({ reason: 'Ùn tắc phát hiện qua camera trên tuyến' });
+          } else if (routeHasSlow) {
+            routeBadTrafficWarnings.push({ reason: 'Giao thông di chuyển chậm trên tuyến' });
+          }
+
+          finalIsSafe = !routeHasJam && !routeHasRain;
+        } else {
+          // Fallback to backend API checkRoute if no cameras are nearby
+          try {
+            const checkRes = await checkRoute({ routePoints });
+            const safetyData = checkRes.data;
+            finalIsSafe = safetyData.isRouteSafe;
+            routeWarnings = safetyData.warnings || [];
+            routeBadTrafficWarnings = safetyData.badTrafficWarnings || [];
+          } catch (err) {
+            console.warn('Fallback checkRoute failed', err);
+          }
         }
+
+        const distanceKm = (routeObj.distance / 1000).toFixed(1);
+        const durationMin = Math.round(routeObj.duration / 60).toString();
+        
+        let summaryText = 'Tuyến đường thay thế';
+        if (routeObj.legs && routeObj.legs.length > 0 && routeObj.legs[0].summary) {
+          summaryText = `Qua ${routeObj.legs[0].summary}`;
+        } else if (i === 0) {
+          summaryText = 'Tuyến đường nhanh nhất';
+        }
+
+        loadedRoutes.push({
+          id: `route-${i}`,
+          distanceKm,
+          durationMin,
+          summary: summaryText,
+          isSafe: finalIsSafe,
+          warnings: routeWarnings,
+          badTrafficWarnings: routeBadTrafficWarnings,
+          coordinates: leafletCoords,
+          cameras: routeCams,
+        });
       }
 
       setRoutes(loadedRoutes);
@@ -251,8 +388,10 @@ export default function RouteScreen() {
       setErrorMsg(err.message || 'Đã có lỗi xảy ra khi tìm đường');
     } finally {
       setLoading(false);
+      setCamerasLoading(false);
     }
   };
+
 
   useEffect(() => {
     if (routes.length > 0 && selectedRouteId) {
@@ -324,30 +463,130 @@ export default function RouteScreen() {
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   value={from}
-                  onChangeText={setFrom}
+                  onChangeText={handleFromChange}
                   placeholder="Điểm xuất phát"
                   placeholderTextColor={colors.textMuted}
                   onSubmitEditing={handleSearch}
+                  onFocus={() => setActiveInput('from')}
                 />
               </View>
+
+              {/* From Suggestions Dropdown */}
+              {activeInput === 'from' && (
+                <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={[styles.suggestionsContainer, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
+                  <ScrollView style={styles.suggestionsScroll} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                    {/* Current location shortcut */}
+                    <TouchableOpacity
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        setFrom('Vị trí hiện tại');
+                        setFromCoord(null);
+                        setFromSuggestions([]);
+                        setActiveInput(null);
+                      }}
+                    >
+                      <Icon name="location" color={colors.primary} size={16} />
+                      <View style={styles.suggestionTextContainer}>
+                        <Text style={[styles.suggestionTitle, { color: colors.primary }]}>Vị trí hiện tại</Text>
+                        <Text style={[styles.suggestionSubtitle, { color: colors.textMuted }]}>Sử dụng GPS</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {fromSuggestions.length > 0 ? (
+                      fromSuggestions.map((s, i) => (
+                        <TouchableOpacity
+                          key={`from-${i}`}
+                          style={[styles.suggestionItem, i === fromSuggestions.length - 1 && { borderBottomWidth: 0 }]}
+                          onPress={() => handleSelectSuggestion(s, 'from')}
+                        >
+                          <Icon name="location" color={colors.textMuted} size={16} />
+                          <View style={styles.suggestionTextContainer}>
+                            <Text style={[styles.suggestionTitle, { color: colors.text }]} numberOfLines={1}>{s.shortName}</Text>
+                            <Text style={[styles.suggestionSubtitle, { color: colors.textMuted }]} numberOfLines={1}>{s.displayName}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))
+                    ) : from.trim().length < 2 ? (
+                      <>
+                        <Text style={[styles.popularLabel, { color: colors.textMuted }]}>Địa điểm phổ biến</Text>
+                        {POPULAR_PLACES.map((p, i) => (
+                          <TouchableOpacity
+                            key={`pop-from-${i}`}
+                            style={[styles.suggestionItem, i === POPULAR_PLACES.length - 1 && { borderBottomWidth: 0 }]}
+                            onPress={() => handleSelectSuggestion(p, 'from')}
+                          >
+                            <Icon name="star" color={colors.primary} size={14} />
+                            <View style={styles.suggestionTextContainer}>
+                              <Text style={[styles.suggestionTitle, { color: colors.text }]} numberOfLines={1}>{p.shortName}</Text>
+                              <Text style={[styles.suggestionSubtitle, { color: colors.textMuted }]} numberOfLines={1}>{p.displayName}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </>
+                    ) : null}
+                  </ScrollView>
+                </Animated.View>
+              )}
+
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <View style={styles.inputRow}>
                 <View style={styles.inputDotRed} />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   value={to}
-                  onChangeText={setTo}
+                  onChangeText={handleToChange}
                   placeholder="Điểm đến"
                   placeholderTextColor={colors.textMuted}
                   onSubmitEditing={handleSearch}
+                  onFocus={() => setActiveInput('to')}
                 />
               </View>
+
+              {/* To Suggestions Dropdown */}
+              {activeInput === 'to' && (
+                <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={[styles.suggestionsContainer, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
+                  <ScrollView style={styles.suggestionsScroll} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                    {toSuggestions.length > 0 ? (
+                      toSuggestions.map((s, i) => (
+                        <TouchableOpacity
+                          key={`to-${i}`}
+                          style={[styles.suggestionItem, i === toSuggestions.length - 1 && { borderBottomWidth: 0 }]}
+                          onPress={() => handleSelectSuggestion(s, 'to')}
+                        >
+                          <Icon name="location" color={colors.textMuted} size={16} />
+                          <View style={styles.suggestionTextContainer}>
+                            <Text style={[styles.suggestionTitle, { color: colors.text }]} numberOfLines={1}>{s.shortName}</Text>
+                            <Text style={[styles.suggestionSubtitle, { color: colors.textMuted }]} numberOfLines={1}>{s.displayName}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))
+                    ) : to.trim().length < 2 ? (
+                      <>
+                        <Text style={[styles.popularLabel, { color: colors.textMuted }]}>Địa điểm phổ biến</Text>
+                        {POPULAR_PLACES.map((p, i) => (
+                          <TouchableOpacity
+                            key={`pop-to-${i}`}
+                            style={[styles.suggestionItem, i === POPULAR_PLACES.length - 1 && { borderBottomWidth: 0 }]}
+                            onPress={() => handleSelectSuggestion(p, 'to')}
+                          >
+                            <Icon name="star" color={colors.primary} size={14} />
+                            <View style={styles.suggestionTextContainer}>
+                              <Text style={[styles.suggestionTitle, { color: colors.text }]} numberOfLines={1}>{p.shortName}</Text>
+                              <Text style={[styles.suggestionSubtitle, { color: colors.textMuted }]} numberOfLines={1}>{p.displayName}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </>
+                    ) : null}
+                  </ScrollView>
+                </Animated.View>
+              )}
               
               <Pressable style={[styles.swapButton, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handleSwap}>
                 <Icon name="refresh" color={colors.primary} size={16} />
               </Pressable>
 
-              <Pressable style={[styles.searchButton, { backgroundColor: colors.primary }]} onPress={handleSearch}>
+              <Pressable style={[styles.searchButton, { backgroundColor: colors.primary }]} onPress={() => { setActiveInput(null); handleSearch(); }}>
                 {loading ? (
                   <ActivityIndicator size="small" color="#051424" />
                 ) : (
@@ -382,55 +621,182 @@ export default function RouteScreen() {
                   </Animated.Text>
 
                   {routes.map((route, index) => {
-                    const isWarning = !route.isSafe || route.warnings.length > 0 || route.badTrafficWarnings.length > 0;
                     const isSelected = selectedRouteId === route.id;
-                    
-                    let mainWarning = 'Tuyến đường tối ưu nhất hiện tại. Không có ngập nước hoặc kẹt xe.';
-                    let shortStatus = 'Thông thoáng';
-                    
-                    if (isWarning) {
-                       const allWarns = [...route.warnings.map(w => w.reason), ...route.badTrafficWarnings.map(w => w.reason)];
-                       if (allWarns.length > 0) {
-                         mainWarning = `Cảnh báo: ${allWarns[0]}`;
-                       } else {
-                         mainWarning = 'Có cảnh báo thời tiết hoặc kẹt xe trên tuyến đường.';
-                       }
-                       
-                       if (route.warnings.length > 0) {
-                          shortStatus = 'Mưa lớn / Ngập';
-                       } else {
-                          shortStatus = 'Kẹt xe';
-                       }
+                    const routeCams = route.cameras || [];
+                    const hasJam = routeCams.some(c => c.trafficLevel === 'jam');
+                    const hasSlow = routeCams.some(c => c.trafficLevel === 'slow');
+                    const hasRain = routeCams.some(c => c.isRaining);
+
+                    let statusText = 'THÔNG THOÁNG';
+                    let statusColor = colors.primary; 
+                    let statusIcon: 'traffic' | 'warning' | 'rainy' = 'traffic';
+                    let mainDesc = 'Hệ thống quét: Tuyến đường tối ưu, di chuyển bình thường.';
+
+                    if (hasJam) {
+                      statusText = 'ÙN TẮC CỰC BỘ';
+                      statusColor = colors.danger;
+                      statusIcon = 'warning';
+                      mainDesc = 'Cảnh báo: Phát hiện ùn tắc qua phân tích camera trên tuyến.';
+                    } else if (hasSlow) {
+                      statusText = 'DI CHUYỂN CHẬM';
+                      statusColor = '#f59e0b';
+                      statusIcon = 'traffic';
+                      mainDesc = 'Lưu ý: Mật độ giao thông đông, di chuyển chậm.';
+                    }
+
+                    if (hasRain) {
+                      const rainCam = routeCams.find(c => c.isRaining);
+                      statusText = hasJam ? 'ÙN TẮC + MƯA' : 'CÓ MƯA / NGẬP';
+                      if (!hasJam) {
+                        statusColor = '#0ea5e9';
+                        statusIcon = 'rainy';
+                      }
+                      mainDesc = `Cảnh báo thời tiết: Mưa tại khu vực ${rainCam?.name || 'tuyến đường'}.`;
+                    }
+
+                    // Fallback to backend API safety if no cameras exist on this route
+                    if (routeCams.length === 0) {
+                      const isSafe = route.isSafe;
+                      const hasBackendJam = route.badTrafficWarnings.length > 0;
+                      const hasBackendRain = route.warnings.length > 0;
+
+                      if (hasBackendJam) {
+                        statusText = 'KẸT XE (DỰ BÁO)';
+                        statusColor = colors.danger;
+                        statusIcon = 'warning';
+                        mainDesc = route.badTrafficWarnings[0]?.reason || 'Phát hiện kẹt xe trên tuyến đường.';
+                      } else if (hasBackendRain) {
+                        statusText = 'MƯA / NGẬP (DỰ BÁO)';
+                        statusColor = '#0ea5e9';
+                        statusIcon = 'rainy';
+                        mainDesc = route.warnings[0]?.reason || 'Phát hiện mưa lớn trên tuyến đường.';
+                      } else {
+                        statusText = isSafe ? 'THÔNG THOÁNG' : 'CÓ CẢNH BÁO';
+                        statusColor = isSafe ? colors.primary : '#f59e0b';
+                        mainDesc = isSafe ? 'Tuyến đường tối ưu nhất hiện tại.' : 'Có cảnh báo thời tiết hoặc kẹt xe.';
+                      }
                     }
 
                     return (
                       <Animated.View key={route.id} entering={FadeInUp.duration(600).delay(100 + index * 100)} layout={Layout.springify()}>
                         <Pressable 
                           style={[
-                            styles.routeCard, 
-                            { backgroundColor: colors.surface, borderColor: colors.border },
-                            isWarning && { borderColor: colors.dangerMuted },
-                            isSelected && { borderColor: colors.primary, borderWidth: 2 }
+                            styles.techRouteCard, 
+                            { backgroundColor: isDark ? 'rgba(12, 22, 38, 0.9)' : 'rgba(255, 255, 255, 0.95)' },
+                            isSelected && { borderColor: statusColor, shadowColor: statusColor, shadowOpacity: 0.3 }
                           ]}
                           onPress={() => setSelectedRouteId(route.id)}
                         >
-                          <View style={styles.routeHeader}>
-                            <View>
-                              <Text style={[isWarning ? styles.routeTimeWarning : styles.routeTime, !isWarning && { color: colors.primary }]}>{route.durationMin} phút</Text>
-                              <Text style={[styles.routeDistance, { color: colors.textMuted }]}>{route.distanceKm} km • {route.summary}</Text>
+                          {isSelected && <View style={[styles.techGlowLine, { backgroundColor: statusColor }]} />}
+
+                          <View style={styles.techRouteHeader}>
+                            <View style={styles.techMainInfo}>
+                              <View style={styles.techTimeContainer}>
+                                <Text style={[styles.techTimeNum, { color: isSelected ? statusColor : colors.text }]}>{route.durationMin}</Text>
+                                <Text style={[styles.techTimeUnit, { color: colors.textMuted }]}>MIN</Text>
+                              </View>
+                              <View style={styles.techTextContainer}>
+                                <Text style={[styles.techSummaryTitle, { color: colors.text }]} numberOfLines={1}>
+                                  {route.summary.toUpperCase()}
+                                </Text>
+                                <Text style={[styles.techStatsText, { color: colors.textMuted }]}>
+                                  DIS: {route.distanceKm} KM  •  CAMS: {routeCams.length}
+                                </Text>
+                              </View>
                             </View>
-                            <View style={isWarning ? styles.statusChipRed : styles.statusChipGreen}>
-                              <Icon name={isWarning ? (route.warnings.length > 0 ? "rainy" : "traffic") : "traffic"} color={isWarning ? colors.danger : colors.primary} size={12} />
-                              <Text style={[isWarning ? styles.statusChipRedText : styles.statusChipGreenText, isWarning ? { color: colors.danger } : { color: colors.primary }]}>{shortStatus}</Text>
+
+                            <View style={[styles.techStatusChip, { borderColor: statusColor }]}>
+                              <View style={[styles.techStatusDot, { backgroundColor: statusColor }]} />
+                              <Text style={[styles.techStatusText, { color: statusColor }]}>{statusText}</Text>
                             </View>
                           </View>
-                          <View style={[styles.routeDetails, { borderTopColor: colors.border }]}>
-                            <Text style={[isWarning ? styles.routeDescWarning : styles.routeDesc, !isWarning && { color: colors.text }]}>{mainWarning}</Text>
+
+                          <View style={[styles.techDetailsFooter, { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}>
+                            <Icon name={statusIcon} color={statusColor} size={13} />
+                            <Text style={[styles.techDescText, { color: colors.textMuted }]} numberOfLines={1}>{mainDesc}</Text>
                           </View>
                         </Pressable>
                       </Animated.View>
                     );
                   })}
+                </View>
+              )}
+
+              {/* Camera cards section */}
+              {!isSearchExpanded && routes.length > 0 && (
+                <View>
+                  <Animated.Text entering={FadeInUp.duration(500).delay(400)} style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 8 }]}>
+                    <Icon name="videocam" color={colors.textMuted} size={14} />  Camera trên tuyến đường {routeCameras.length > 0 ? `(${routeCameras.length})` : ''}
+                  </Animated.Text>
+
+                  {camerasLoading ? (
+                    <Animated.View entering={FadeIn.duration(300)} style={styles.camerasLoadingContainer}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={[styles.camerasLoadingText, { color: colors.textMuted }]}>Đang tìm camera...</Text>
+                    </Animated.View>
+                  ) : routeCameras.length === 0 ? (
+                    <Animated.View entering={FadeIn.duration(300)} style={[styles.noCameraBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                      <Icon name="videocam" color={colors.textMuted} size={20} />
+                      <Text style={[styles.noCameraText, { color: colors.textMuted }]}>Không tìm thấy camera nào trên tuyến đường</Text>
+                    </Animated.View>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cameraScrollContent}>
+                      {routeCameras.map((cam, index) => {
+                        const isRaining = cam.isRaining;
+                        const rainText = formatRainLevel(cam.rainLevel);
+                        const trafficText = formatTrafficLevel(cam.trafficLevel);
+                        const hasImage = !!cam.imageSources.weatherImageUrl;
+
+                        return (
+                          <Animated.View key={cam.id} entering={FadeInUp.duration(500).delay(100 + index * 80)}>
+                            <Pressable
+                              style={[
+                                styles.cameraCard,
+                                { backgroundColor: colors.surface, borderColor: isRaining ? colors.dangerMuted : colors.border },
+                              ]}
+                              onPress={() => router.push({ pathname: '/camera-detail', params: { id: cam.id, name: cam.name } })}
+                            >
+                              {/* Camera Image */}
+                              <View style={styles.cameraImageContainer}>
+                                {hasImage ? (
+                                  <Image
+                                    source={{ uri: cam.imageSources.weatherImageUrl }}
+                                    style={styles.cameraImage}
+                                    contentFit="cover"
+                                    transition={200}
+                                  />
+                                ) : (
+                                  <View style={[styles.cameraImagePlaceholder, { backgroundColor: colors.surfaceHighlight }]}>
+                                    <Icon name="videocam" color={colors.textMuted} size={24} />
+                                  </View>
+                                )}
+                                {/* Status badge */}
+                                {isRaining && (
+                                  <View style={styles.cameraRainBadge}>
+                                    <Icon name="rainy" color="#fff" size={10} />
+                                  </View>
+                                )}
+                              </View>
+
+                              {/* Camera Info */}
+                              <View style={styles.cameraInfo}>
+                                <Text style={[styles.cameraName, { color: colors.text }]} numberOfLines={1}>{cam.name}</Text>
+                                <View style={styles.cameraStatusRow}>
+                                  <Icon name={isRaining ? 'rainy' : 'traffic'} color={isRaining ? colors.danger : colors.primary} size={11} />
+                                  <Text style={[styles.cameraStatusText, { color: isRaining ? colors.danger : colors.primary }]} numberOfLines={1}>
+                                    {isRaining ? rainText : trafficText}
+                                  </Text>
+                                </View>
+                                {cam.timeAgo ? (
+                                  <Text style={[styles.cameraTimeAgo, { color: colors.textMuted }]} numberOfLines={1}>{cam.timeAgo}</Text>
+                                ) : null}
+                              </View>
+                            </Pressable>
+                          </Animated.View>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
                 </View>
               )}
             </ScrollView>
@@ -467,10 +833,10 @@ const styles = StyleSheet.create({
   },
   bottomOverlay: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 60,
     left: 0,
     right: 0,
-    maxHeight: '45%',
+    maxHeight: '55%',
     zIndex: 20,
   },
   bottomScrollView: {
@@ -631,5 +997,218 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#ffb4ab',
     lineHeight: 22,
+  },
+  suggestionsContainer: {
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 4,
+    marginBottom: 4,
+    overflow: 'hidden',
+    maxHeight: 220,
+  },
+  suggestionsScroll: {
+    maxHeight: 220,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  suggestionTextContainer: {
+    flex: 1,
+  },
+  suggestionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  suggestionSubtitle: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  popularLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  // Camera cards styles
+  camerasLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 20,
+  },
+  camerasLoadingText: {
+    fontSize: 13,
+  },
+  noCameraBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  noCameraText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  cameraScrollContent: {
+    gap: 12,
+    paddingBottom: 8,
+  },
+  cameraCard: {
+    width: 150,
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cameraImageContainer: {
+    width: '100%',
+    height: 96,
+    position: 'relative',
+  },
+  cameraImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cameraImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraRainBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.85)',
+    borderRadius: 8,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraInfo: {
+    padding: 10,
+    gap: 3,
+  },
+  cameraName: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  cameraStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  cameraStatusText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  cameraTimeAgo: {
+    fontSize: 10,
+  },
+  techRouteCard: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 14,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  techGlowLine: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+  },
+  techRouteHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  techMainInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  techTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  techTimeNum: {
+    fontSize: 28,
+    fontWeight: '900',
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    letterSpacing: -1,
+  },
+  techTimeUnit: {
+    fontSize: 10,
+    fontWeight: '800',
+    marginLeft: 2,
+  },
+  techTextContainer: {
+    flex: 1,
+  },
+  techSummaryTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  techStatsText: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+  techStatusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  techStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  techStatusText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  techDetailsFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  techDescText: {
+    fontSize: 11,
+    fontWeight: '500',
+    flex: 1,
   },
 });
