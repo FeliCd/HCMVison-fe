@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, TextInput, ActivityIndicator } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
 import { useCamera } from '@/hooks/useCamera';
@@ -8,8 +8,10 @@ import { Camera } from '@/types/api';
 
 export default function CamerasScreen() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ wardId?: string }>();
   const { cameras, loading, error, getCameras } = useCamera();
   const [searchText, setSearchText] = useState('');
+  const wardIdFilter = typeof params.wardId === 'string' ? params.wardId : null;
 
   const refreshCameras = useCallback(() => getCameras(undefined, 1, 200), [getCameras]);
 
@@ -27,12 +29,17 @@ export default function CamerasScreen() {
   }, []);
 
   const filteredCameras = cameras.filter((camera) => {
+    if (wardIdFilter && camera.wardId !== wardIdFilter) {
+      return false;
+    }
+
     if (!searchText) return true;
     const query = searchText.toLowerCase();
     const nameMatch = camera.name ? camera.name.toLowerCase().includes(query) : false;
     const wardMatch = camera.wardName ? camera.wardName.toLowerCase().includes(query) : false;
+    const wardIdMatch = camera.wardId ? camera.wardId.toLowerCase().includes(query) : false;
     const idMatch = camera.id ? camera.id.toLowerCase().includes(query) : false;
-    return nameMatch || wardMatch || idMatch;
+    return nameMatch || wardMatch || wardIdMatch || idMatch;
   });
 
   const getStatusColor = (status: Camera['status']) => {

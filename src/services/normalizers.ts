@@ -88,6 +88,7 @@ export function normalizeCamera(raw: unknown): Camera {
     longitude: asNumber(field(raw, 'longitude')),
     wardId: field<string>(raw, 'wardId'),
     wardName: field<string>(raw, 'wardName'),
+    districtName: field<string>(raw, 'districtName'),
     status: (field<string>(raw, 'status') || 'Offline') as Camera['status'],
     streamUrl: field<string>(raw, 'streamUrl'),
     streamType: field<string>(raw, 'streamType'),

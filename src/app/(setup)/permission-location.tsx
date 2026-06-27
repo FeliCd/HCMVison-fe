@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -9,16 +9,30 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import { syncCurrentUserLocationAsync } from '@/services/location';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function PermissionLocationScreen() {
   const insets = useSafeAreaInsets();
+  const [isSyncingLocation, setIsSyncingLocation] = useState(false);
   const btnScale = useSharedValue(1);
 
   const btnStyle = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
   }));
+
+  const handleAllowLocation = async () => {
+    setIsSyncingLocation(true);
+    try {
+      await syncCurrentUserLocationAsync({ requestPermission: true });
+    } catch (error) {
+      console.warn('Failed to sync current location during setup', error);
+    } finally {
+      setIsSyncingLocation(false);
+      router.push('/permission-notification');
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }]}>
@@ -49,12 +63,17 @@ export default function PermissionLocationScreen() {
           <Text style={styles.denyButtonText}>Lúc khác</Text>
         </Pressable>
         <AnimatedPressable
-          style={[styles.allowButton, btnStyle]}
-          onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
+          style={[styles.allowButton, btnStyle, isSyncingLocation && styles.allowButtonDisabled]}
+          disabled={isSyncingLocation}
+          onPressIn={() => { if (!isSyncingLocation) btnScale.value = withSpring(0.95, { damping: 12 }); }}
           onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
-          onPress={() => router.push('/permission-notification')}
+          onPress={handleAllowLocation}
         >
-          <Text style={styles.allowButtonText}>Cho phép</Text>
+          {isSyncingLocation ? (
+            <ActivityIndicator color="#003735" />
+          ) : (
+            <Text style={styles.allowButtonText}>Cho phép</Text>
+          )}
         </AnimatedPressable>
       </Animated.View>
     </View>
@@ -114,5 +133,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#00f2ea',
     alignItems: 'center',
   },
+  allowButtonDisabled: { opacity: 0.7 },
   allowButtonText: { color: '#003735', fontSize: 16, fontWeight: '700' },
 });

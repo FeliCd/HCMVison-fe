@@ -5,8 +5,26 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/icons';
 import { RequireAuth } from '@/components/route-guards';
+import { AlertSubscription } from '@/types/api';
 
 import Animated, { FadeInUp } from 'react-native-reanimated';
+
+function getSubscriptionItems(payload: unknown): AlertSubscription[] {
+  if (Array.isArray(payload)) {
+    return payload as AlertSubscription[];
+  }
+
+  const value = payload as { items?: AlertSubscription[]; data?: AlertSubscription[] };
+  if (Array.isArray(value?.items)) {
+    return value.items;
+  }
+
+  if (Array.isArray(value?.data)) {
+    return value.data;
+  }
+
+  return [];
+}
 
 function SubscriptionsContent() {
   const insets = useSafeAreaInsets();
@@ -19,7 +37,7 @@ function SubscriptionsContent() {
     setError('');
     try {
       const response = await getSubscriptions();
-      setSubs(response.data?.items || []);
+      setSubs(getSubscriptionItems(response.data));
     } catch (e: any) {
       setError(e.response?.data?.message || 'Không thể tải danh sách cảnh báo');
     } finally {
@@ -94,7 +112,6 @@ function SubscriptionsContent() {
                 <View style={styles.cardInfo}>
                   <Text style={styles.wardName}>{item.wardName || 'Khu vực'}</Text>
                   <Text style={styles.districtName}>{item.districtName || 'Thành phố'}</Text>
-                  <Text style={styles.thresholdText}>Ngưỡng mưa: {Math.round(item.thresholdProbability * 100)}%</Text>
                 </View>
                 <Switch 
                   value={item.isEnabled} 
@@ -144,7 +161,6 @@ const styles = StyleSheet.create({
   cardInfo: { flex: 1 },
   wardName: { fontSize: 16, fontWeight: '700', color: '#d4e4fa' },
   districtName: { fontSize: 14, color: '#849492', marginTop: 2 },
-  thresholdText: { fontSize: 13, color: '#00f2ea', marginTop: 8 },
   cardActions: { flexDirection: 'row', justifyContent: 'flex-end' },
   deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 8 },
   deleteText: { color: '#fca5a5', fontSize: 13 },

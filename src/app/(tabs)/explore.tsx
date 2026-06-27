@@ -27,6 +27,7 @@ import { Icon } from '@/components/icons';
 import { useCamera } from '@/hooks/useCamera';
 import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
+import { syncCurrentUserLocationAsync } from '@/services/location';
 import { WeatherLog } from '@/types/api';
 import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
@@ -339,13 +340,18 @@ export default function TabTwoScreen() {
         alert('Cần cấp quyền vị trí để sử dụng tính năng này.');
         return;
       }
-      let location = await Location.getCurrentPositionAsync({});
+      const location = await syncCurrentUserLocationAsync({ requestPermission: false });
+      if (!location) {
+        alert('Không thể lấy vị trí hiện tại.');
+        return;
+      }
+
       if (Platform.OS === 'web') {
-        iframeRef.current?.contentWindow?.postMessage({ type: 'SET_USER_LOCATION', lat: location.coords.latitude, lng: location.coords.longitude }, '*');
+        iframeRef.current?.contentWindow?.postMessage({ type: 'SET_USER_LOCATION', lat: location.latitude, lng: location.longitude }, '*');
       } else {
         webViewRef.current?.injectJavaScript(`
           if (window.setUserLocation) {
-            window.setUserLocation(${location.coords.latitude}, ${location.coords.longitude});
+            window.setUserLocation(${location.latitude}, ${location.longitude});
           }
           true;
         `);

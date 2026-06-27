@@ -1,4 +1,5 @@
 import { updateCamera, createCamera } from '@/services/camera';
+import { resolveWardByCoordinates, type ResolvedWard } from '@/services/location';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -18,11 +19,53 @@ export default function EditCameraScreen() {
   const [lng, setLng] = useState(params.lng?.toString() || '');
   const [wardId, setWardId] = useState(params.wardId as string || '');
   const [streamUrl, setStreamUrl] = useState(params.streamUrl as string || '');
+  const [resolvedWard, setResolvedWard] = useState<ResolvedWard | null>(null);
+  const [resolvingWard, setResolvingWard] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const parseCoordinate = (value: string) => {
+    const parsed = Number(value.replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const getErrorMessage = (error: any) => {
+    const data = error.response?.data;
+    if (typeof data === 'string') return data;
+    return data?.message || data?.error || 'Không thể lưu camera';
+  };
+
+  const handleResolveWard = async () => {
+    const latitude = parseCoordinate(lat);
+    const longitude = parseCoordinate(lng);
+
+    if (latitude === null || longitude === null) {
+      Alert.alert('Lỗi', 'Vui lòng nhập vĩ độ và kinh độ hợp lệ trước.');
+      return;
+    }
+
+    setResolvingWard(true);
+    try {
+      const ward = await resolveWardByCoordinates(latitude, longitude);
+      setWardId(ward.wardId);
+      setResolvedWard(ward);
+    } catch (error: any) {
+      setResolvedWard(null);
+      Alert.alert('Không tìm thấy phường', getErrorMessage(error));
+    } finally {
+      setResolvingWard(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!id || !name || !lat || !lng || !streamUrl) {
       Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ các trường bắt buộc');
+      return;
+    }
+
+    const latitude = parseCoordinate(lat);
+    const longitude = parseCoordinate(lng);
+    if (latitude === null || longitude === null) {
+      Alert.alert('Lỗi', 'Vĩ độ hoặc kinh độ không hợp lệ');
       return;
     }
 
@@ -31,9 +74,9 @@ export default function EditCameraScreen() {
       if (isEdit) {
         await updateCamera(id, {
           name,
-          latitude: parseFloat(lat),
-          longitude: parseFloat(lng),
-          wardId: wardId || undefined,
+          latitude,
+          longitude,
+          wardId: wardId.trim() || undefined,
           streamUrl
         });
         Alert.alert('Thành công', 'Cập nhật camera thành công');
@@ -41,16 +84,16 @@ export default function EditCameraScreen() {
         await createCamera({
           id,
           name,
-          latitude: parseFloat(lat),
-          longitude: parseFloat(lng),
-          wardId: wardId || undefined,
+          latitude,
+          longitude,
+          wardId: wardId.trim() || undefined,
           streamUrl
         });
         Alert.alert('Thành công', 'Thêm camera mới thành công');
       }
       router.back();
     } catch (e: any) {
-      Alert.alert('Lỗi', e.response?.data?.message || 'Không thể lưu camera');
+      Alert.alert('Lỗi', getErrorMessage(e));
     } finally {
       setSubmitting(false);
     }
@@ -99,7 +142,10 @@ export default function EditCameraScreen() {
             <TextInput
               style={styles.input}
               value={lat}
-              onChangeText={setLat}
+              onChangeText={(value) => {
+                setLat(value);
+                setResolvedWard(null);
+              }}
               keyboardType="numeric"
               placeholder="10.12345"
               placeholderTextColor="#64748b"
@@ -111,7 +157,10 @@ export default function EditCameraScreen() {
             <TextInput
               style={styles.input}
               value={lng}
-              onChangeText={setLng}
+              onChangeText={(value) => {
+                setLng(value);
+                setResolvedWard(null);
+              }}
               keyboardType="numeric"
               placeholder="106.12345"
               placeholderTextColor="#64748b"
@@ -124,10 +173,34 @@ export default function EditCameraScreen() {
           <TextInput
             style={styles.input}
             value={wardId}
-            onChangeText={setWardId}
+            onChangeText={(value) => {
+              setWardId(value);
+              setResolvedWard(null);
+            }}
             placeholder="VD: 12345"
             placeholderTextColor="#64748b"
           />
+          <Pressable
+            style={[styles.resolveBtn, resolvingWard && styles.resolveBtnDisabled]}
+            onPress={handleResolveWard}
+            disabled={resolvingWard}
+          >
+            {resolvingWard ? (
+              <ActivityIndicator color="#00f2ea" />
+            ) : (
+              <Icon name="my_location" color="#00f2ea" size={18} />
+            )}
+            <Text style={styles.resolveBtnText}>
+              {resolvingWard ? 'Đang xác định...' : 'Tự xác định phường từ tọa độ'}
+            </Text>
+          </Pressable>
+          {resolvedWard ? (
+            <Text style={styles.resolvedWardText}>
+              {resolvedWard.wardName}
+              {resolvedWard.districtName ? ` - ${resolvedWard.districtName}` : ''}
+              {resolvedWard.matchType === 'nearest' ? ` (gần nhất ${Math.round(resolvedWard.distanceMeters)}m)` : ''}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.formGroup}>
@@ -166,6 +239,10 @@ const styles = StyleSheet.create({
   inputDisabled: { opacity: 0.5, backgroundColor: 'rgba(255,255,255,0.02)' },
   row: { flexDirection: 'row' },
   gap: { width: 16 },
+  resolveBtn: { marginTop: 10, borderWidth: 1, borderColor: 'rgba(0,242,234,0.35)', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(0,242,234,0.08)' },
+  resolveBtnDisabled: { opacity: 0.6 },
+  resolveBtnText: { color: '#00f2ea', fontSize: 14, fontWeight: '700' },
+  resolvedWardText: { marginTop: 8, color: '#8ee7df', fontSize: 13, lineHeight: 18 },
   submitBtn: { backgroundColor: '#00f2ea', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 12 },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: '#003735', fontSize: 16, fontWeight: '700' },

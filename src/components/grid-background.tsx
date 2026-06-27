@@ -1,10 +1,9 @@
-import React from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 export function GridBackground() {
   const { width, height } = useWindowDimensions();
   const step = 40;
-  
+
   const cols = Math.ceil(width / step);
   const rows = Math.ceil(height / step);
 
@@ -59,7 +58,7 @@ export function GridBackground() {
 
 const styles = StyleSheet.create({
   background: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#051424',
   },
   radialGlow: {

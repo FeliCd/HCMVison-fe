@@ -21,12 +21,6 @@ import { syncDeviceTokenAsync } from '@/services/NotificationManager';
 
 import { AlertSubscription, Ward } from '@/types/api';
 
-const THRESHOLD_OPTIONS = [
-  { label: 'Nhẹ', value: 0.5, description: 'Từ 50%' },
-  { label: 'Vừa', value: 0.7, description: 'Từ 70%' },
-  { label: 'Nặng', value: 0.9, description: 'Từ 90%' },
-];
-
 function toArray<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) {
     return payload as T[];
@@ -66,7 +60,6 @@ function PermissionNotificationContent() {
   const [wards, setWards] = useState<Ward[]>([]);
   const [subscriptions, setSubscriptions] = useState<AlertSubscription[]>([]);
   const [selectedWardId, setSelectedWardId] = useState<string | null>(null);
-  const [thresholdProbability, setThresholdProbability] = useState(0.7);
   const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -156,7 +149,6 @@ function PermissionNotificationContent() {
       await syncDeviceTokenAsync({ requestPermission: Platform.OS !== 'web' });
       await createSubscription({
         wardId: selectedWardId,
-        thresholdProbability,
       });
 
       setMessage(
@@ -251,29 +243,6 @@ function PermissionNotificationContent() {
             style={styles.searchInput}
           />
 
-          <View style={styles.thresholdRow}>
-            {THRESHOLD_OPTIONS.map((option) => {
-              const selected = thresholdProbability === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  style={[styles.thresholdButton, selected && styles.thresholdButtonActive]}
-                  onPress={() => setThresholdProbability(option.value)}
-                >
-                  <Text
-                    style={[
-                      styles.thresholdLabel,
-                      selected && styles.thresholdLabelActive,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                  <Text style={styles.thresholdDescription}>{option.description}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
           {isLoading ? (
             <View style={styles.centerState}>
               <ActivityIndicator color="#00f2ea" />
@@ -347,8 +316,7 @@ function PermissionNotificationContent() {
                 <View style={styles.wardTextWrap}>
                   <Text style={styles.wardName}>{subscription.wardName || subscription.wardId}</Text>
                   <Text style={styles.wardDistrict}>
-                    {subscription.districtName || 'Ngưỡng cảnh báo'} -{' '}
-                    {Math.round(subscription.thresholdProbability * 100)}%
+                    {subscription.districtName || 'Khu vực đang theo dõi'}
                   </Text>
                 </View>
                 <Pressable
@@ -470,36 +438,6 @@ const styles = StyleSheet.create({
         outlineStyle: 'none' as any,
       },
     }),
-  },
-  thresholdRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  thresholdButton: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    backgroundColor: '#0f172a',
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  thresholdButtonActive: {
-    borderColor: '#00f2ea',
-    backgroundColor: 'rgba(0, 242, 234, 0.12)',
-  },
-  thresholdLabel: {
-    color: '#b9cac8',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  thresholdLabelActive: {
-    color: '#00f2ea',
-  },
-  thresholdDescription: {
-    color: '#64748b',
-    fontSize: 11,
-    marginTop: 2,
   },
   centerState: {
     alignItems: 'center',
