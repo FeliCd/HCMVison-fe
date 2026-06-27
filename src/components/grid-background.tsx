@@ -58,7 +58,7 @@ export function GridBackground() {
 
 const styles = StyleSheet.create({
   background: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#051424',
   },
   radialGlow: {

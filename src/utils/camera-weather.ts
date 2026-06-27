@@ -35,12 +35,6 @@ export function mapLatestWeatherByCamera(logs: WeatherLog[]) {
   return latestByCamera;
 }
 
-function isExpired(expiresAt?: string) {
-  if (!expiresAt) return false;
-  const timestamp = Date.parse(expiresAt);
-  return !Number.isNaN(timestamp) && timestamp <= Date.now();
-}
-
 export function getCameraImageSources(
   camera?: Camera | null,
   weather?: WeatherLog | null

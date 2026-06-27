@@ -1,13 +1,12 @@
-import { getDistricts, getWardsByDistrict } from '@/services/location';
 import { createSubscription } from '@/services/misc';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon } from '@/components/icons';
-<<<<<<< HEAD
 import { apiClient } from '@/services/api';
 import { District, Ward } from '@/types/api';
+import { Icon } from '@/components/icons';
+import { RequireAuth } from '@/components/route-guards';
 
 function toArray<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) {
@@ -46,7 +45,6 @@ function AddSubscriptionContent() {
 
   const fetchDistricts = async () => {
     try {
-<<<<<<< HEAD
       const response = await apiClient.getDistricts();
       setDistricts(
         toArray<District>(response.data).filter(
@@ -66,7 +64,6 @@ function AddSubscriptionContent() {
     setWards([]);
     setLoading(true);
     try {
-<<<<<<< HEAD
       const response = await apiClient.getWardsByDistrict(name);
       setWards(
         toArray<Ward>(response.data).filter(

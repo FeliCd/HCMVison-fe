@@ -1,7 +1,6 @@
 import { geocodeAddress, getOSRMRoutes, searchAddresses, AddressSuggestion } from '@/services/location';
-import { checkRoute } from '@/services/weather';
+import { checkRoute, getWeatherLogs } from '@/services/weather';
 import { getCameras } from '@/services/camera';
-import { getWeatherLogs } from '@/services/weather';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet,
@@ -161,7 +160,11 @@ export default function RouteScreen() {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(async () => {
       if (text.trim().length < 2) {
-        field === 'from' ? setFromSuggestions([]) : setToSuggestions([]);
+        if (field === 'from') {
+          setFromSuggestions([]);
+        } else {
+          setToSuggestions([]);
+        }
         return;
       }
       const results = await searchAddresses(text);
@@ -311,10 +314,10 @@ export default function RouteScreen() {
         const leafletCoords = coords.map((c: any) => ({ lat: c[1], lng: c[0] }));
 
         // Filter cameras within 500m of this specific route
-        const sampledCoords = leafletCoords.filter((_, idx) => idx % 5 === 0);
+        const sampledCoords = leafletCoords.filter((_: { lat: number; lng: number }, idx: number) => idx % 5 === 0);
         const routeCams = allCamerasWithWeather.filter(cam => {
           if (!cam.latitude || !cam.longitude) return false;
-          return sampledCoords.some(coord =>
+          return sampledCoords.some((coord: { lat: number; lng: number }) =>
             getDistanceFromLatLng(cam.latitude, cam.longitude, coord.lat, coord.lng) < 500
           );
         });

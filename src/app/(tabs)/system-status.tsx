@@ -6,6 +6,9 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
 import { useWeather } from '@/hooks/useWeather';
 import { useCamera } from '@/hooks/useCamera';
+import { useAuth } from '@/hooks/useAuth';
+import { getFavorites, removeFavorite } from '@/services/misc';
+import { Camera } from '@/types/api';
 import { router, useFocusEffect } from 'expo-router';
 import { CameraImage } from '@/components/camera-image';
 import { mergeCamerasWithWeather } from '@/utils/camera-weather';
@@ -16,25 +19,50 @@ export default function StatusScreen() {
   const { width } = useWindowDimensions();
   const { rainingCameras, logs, loading, error, getRainingCameras, getWeatherLogs } = useWeather();
   const { cameras, getCameras, loading: camerasLoading } = useCamera();
+  const { isAuthenticated } = useAuth();
+
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchText, setSearchText] = useState('');
   const [imageRefreshAt, setImageRefreshAt] = useState(() => Date.now());
+  const [rawFavorites, setRawFavorites] = useState<Camera[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState('Tất cả');
+  const [weatherFilter, setWeatherFilter] = useState<'all' | 'rain' | 'dry'>('all');
+  const [trafficFilter, setTrafficFilter] = useState<'all' | 'jam' | 'fluid'>('all');
 
   const numColumns = width >= 768 ? 4 : 1;
   const gap = 16;
   const cardWidth = width >= 768 ? Math.floor((width - 64 - (numColumns - 1) * gap) / numColumns) : '100%';
 
   const refreshLiveData = useCallback(async () => {
-    const results = await Promise.allSettled([
+    const promises: Promise<any>[] = [
       getRainingCameras(30),
       getWeatherLogs(180, 500, false),
       getCameras(undefined, 1, 1000),
-    ]);
+    ];
+
+    if (isAuthenticated) {
+      promises.push(getFavorites().catch(() => null));
+    }
+
+    const results = await Promise.allSettled(promises);
+
+    if (isAuthenticated) {
+      const favResult = results[3];
+      if (favResult && favResult.status === 'fulfilled' && favResult.value) {
+        const rawFavs = favResult.value.data?.items || [];
+        setRawFavorites(rawFavs.map((f: any) => f.camera).filter(Boolean));
+      } else if (favResult && favResult.status === 'rejected') {
+        setRawFavorites([]);
+      }
+    } else {
+      setRawFavorites([]);
+    }
 
     if (results.some((result) => result.status === 'fulfilled')) {
       setImageRefreshAt(Date.now());
     }
-  }, [getCameras, getRainingCameras, getWeatherLogs]);
+  }, [getCameras, getRainingCameras, getWeatherLogs, isAuthenticated]);
 
   useFocusEffect(
     useCallback(() => {
@@ -52,20 +80,66 @@ export default function StatusScreen() {
 
   const rainingCount = rainingCameras.length;
 
+  const favoriteCards = useMemo(
+    () => mergeCamerasWithWeather(rawFavorites, logs),
+    [rawFavorites, logs]
+  );
+
+  const handleRemoveFavorite = async (id: string) => {
+    try {
+      await removeFavorite(id);
+      setRawFavorites((prev) => prev.filter((c) => c.id !== id));
+    } catch (err) {
+      console.warn('Failed to remove favorite', err);
+    }
+  };
+
+  const districts = useMemo(() => {
+    const list = new Set<string>();
+    cameras.forEach((cam) => {
+      if (cam.districtName) {
+        list.add(cam.districtName.trim());
+      }
+    });
+    return ['Tất cả', ...Array.from(list).sort()];
+  }, [cameras]);
+
   // Lọc camera không phân biệt chữ hoa / chữ thường
   const cameraCards = useMemo(
     () => mergeCamerasWithWeather(cameras, logs),
     [cameras, logs]
   );
 
-  const filteredCameras = cameraCards.filter((cam) => {
-    if (!searchText) return true;
-    const query = searchText.toLowerCase();
-    const nameMatch = cam.name ? cam.name.toLowerCase().includes(query) : false;
-    const wardMatch = cam.wardName ? cam.wardName.toLowerCase().includes(query) : false;
-    const idMatch = cam.id ? cam.id.toLowerCase().includes(query) : false;
-    return nameMatch || wardMatch || idMatch;
-  });
+  const filteredCameras = useMemo(() => {
+    return cameraCards.filter((cam) => {
+      // 1. Text Search Filter
+      if (searchText) {
+        const query = searchText.toLowerCase();
+        const nameMatch = cam.name ? cam.name.toLowerCase().includes(query) : false;
+        const wardMatch = cam.wardName ? cam.wardName.toLowerCase().includes(query) : false;
+        const idMatch = cam.id ? cam.id.toLowerCase().includes(query) : false;
+        if (!nameMatch && !wardMatch && !idMatch) return false;
+      }
+
+      // 2. District Filter
+      if (selectedDistrict !== 'Tất cả') {
+        if (!cam.districtName || cam.districtName.trim() !== selectedDistrict) {
+          return false;
+        }
+      }
+
+      // 3. Weather Filter
+      if (weatherFilter === 'rain' && !cam.isRaining) return false;
+      if (weatherFilter === 'dry' && cam.isRaining) return false;
+
+      // 4. Traffic Filter
+      const isJam = cam.trafficLevel === 'jam' || cam.trafficLevel === 'slow';
+      if (trafficFilter === 'jam' && !isJam) return false;
+      if (trafficFilter === 'fluid' && isJam) return false;
+
+      return true;
+    });
+  }, [cameraCards, searchText, selectedDistrict, weatherFilter, trafficFilter]);
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
@@ -101,6 +175,96 @@ export default function StatusScreen() {
           </View>
         </Animated.View>
 
+        {/* Favorite Cameras Section */}
+        {isAuthenticated ? (
+          favoriteCards.length > 0 && (
+            <Animated.View entering={FadeInUp.duration(500).delay(120)} style={styles.favSection}>
+              <View style={styles.favSectionHeader}>
+                <View style={styles.favSectionHeaderLeft}>
+                  <Icon name="favorite" color="#ffb4ab" size={16} />
+                  <Text style={styles.favSectionTitle}>Camera yêu thích</Text>
+                </View>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.favScrollContent}>
+                {favoriteCards.map((cam) => {
+                  const isOnline = cam.status === 'Active';
+                  const isRaining = cam.isRaining;
+                  const rainText = formatRainLevel(cam.rainLevel);
+                  const trafficText = formatTrafficLevel(cam.trafficLevel);
+                  const hasImage = !!cam.imageSources?.weatherImageUrl;
+
+                  let statusColor = '#00f2ea';
+                  if (cam.trafficLevel === 'jam') {
+                    statusColor = '#ffb4ab';
+                  } else if (cam.trafficLevel === 'slow') {
+                    statusColor = '#f59e0b';
+                  }
+                  if (isRaining && cam.trafficLevel !== 'jam') {
+                    statusColor = '#0ea5e9';
+                  }
+
+                  return (
+                    <Pressable
+                      key={`fav-${cam.id}`}
+                      style={styles.favCameraCard}
+                      onPress={() => router.push({ pathname: '/camera-detail', params: { id: cam.id, name: cam.name } })}
+                    >
+                      <View style={styles.favCameraImageContainer}>
+                        <CameraImage
+                          sources={cam.imageSources}
+                          refreshKey={imageRefreshAt}
+                          style={styles.favCameraImage}
+                          accessibilityLabel={`Ảnh camera ${cam.name}`}
+                          fallback={
+                            <View style={styles.favImagePlaceholder}>
+                              <Icon name="image" color="#64748b" size={24} />
+                            </View>
+                          }
+                        />
+                        
+                        <View style={styles.onlineBadgeMini}>
+                          <View style={[styles.statusDotMini, { backgroundColor: isOnline ? '#22c55e' : '#f43f5e' }]} />
+                        </View>
+                        
+                        <Pressable style={styles.favHeartBtn} onPress={(e) => { e.stopPropagation(); handleRemoveFavorite(cam.id); }}>
+                          <Icon name="favorite" color="#f87171" size={14} />
+                        </Pressable>
+                      </View>
+                      
+                      <View style={styles.favCameraInfo}>
+                        <Text style={styles.favCameraTitle} numberOfLines={1}>{cam.name}</Text>
+                        <View style={styles.favStatusRow}>
+                          <Icon name={isRaining ? 'rainy' : 'traffic'} color={statusColor} size={10} />
+                          <Text style={[styles.favStatusText, { color: statusColor }]} numberOfLines={1}>
+                            {isRaining ? rainText : trafficText}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </Animated.View>
+          )
+        ) : (
+          <Animated.View entering={FadeInUp.duration(500).delay(120)} style={styles.favSectionEmpty}>
+            <View style={styles.favEmptyCard}>
+              <View style={styles.favEmptyLeft}>
+                <View style={styles.favEmptyIconBg}>
+                  <Icon name="favorite_border" color="#849492" size={18} />
+                </View>
+                <View style={styles.favEmptyTextContainer}>
+                  <Text style={styles.favEmptyTitle}>Camera yêu thích</Text>
+                  <Text style={styles.favEmptySubtitle}>Đăng nhập để lưu camera thường dùng</Text>
+                </View>
+              </View>
+              <Pressable style={styles.favLoginBtn} onPress={() => router.push('/login')}>
+                <Text style={styles.favLoginBtnText}>Đăng nhập</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        )}
+
         {/* Search Bar */}
         <Animated.View entering={FadeInUp.duration(500).delay(150)} style={styles.searchContainer}>
           <Icon name="search" color="#94a3b8" size={20} />
@@ -117,7 +281,102 @@ export default function StatusScreen() {
               <Icon name="close" color="#94a3b8" size={18} />
             </Pressable>
           ) : null}
+          <View style={[styles.searchDivider, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />
+          <Pressable onPress={() => setShowFilters(!showFilters)} style={styles.filterToggleBtn}>
+            <Icon name="tune" color={showFilters ? '#00f2ea' : '#94a3b8'} size={20} />
+          </Pressable>
         </Animated.View>
+
+        {/* Advanced Filters Panel */}
+        {showFilters && (
+          <Animated.View entering={FadeInUp.duration(300)} style={styles.filtersPanel}>
+            {/* 1. Districts Horizontal List */}
+            <Text style={styles.filterLabel}>Khu vực (Quận / Huyện)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.districtChipsRow}>
+              {districts.map((district) => {
+                const isActive = selectedDistrict === district;
+                return (
+                  <Pressable
+                    key={district}
+                    style={[styles.districtChip, isActive && styles.districtChipActive]}
+                    onPress={() => setSelectedDistrict(district)}
+                  >
+                    <Text style={[styles.districtChipText, isActive && styles.districtChipTextActive]}>
+                      {district}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.filterRowsContainer}>
+              {/* 2. Weather filter */}
+              <View style={styles.filterCol}>
+                <Text style={styles.filterLabel}>Thời tiết</Text>
+                <View style={styles.filterGroup}>
+                  {(['all', 'rain', 'dry'] as const).map((mode) => {
+                    const isActive = weatherFilter === mode;
+                    let label = 'Tất cả';
+                    if (mode === 'rain') label = 'Có mưa';
+                    if (mode === 'dry') label = 'Không mưa';
+
+                    return (
+                      <Pressable
+                        key={`weather-${mode}`}
+                        style={[styles.filterBtn, isActive && styles.filterBtnActive]}
+                        onPress={() => setWeatherFilter(mode)}
+                      >
+                        <Text style={[styles.filterBtnText, isActive && styles.filterBtnTextActive]}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* 3. Traffic filter */}
+              <View style={styles.filterCol}>
+                <Text style={styles.filterLabel}>Giao thông</Text>
+                <View style={styles.filterGroup}>
+                  {(['all', 'jam', 'fluid'] as const).map((mode) => {
+                    const isActive = trafficFilter === mode;
+                    let label = 'Tất cả';
+                    if (mode === 'jam') label = 'Kẹt xe';
+                    if (mode === 'fluid') label = 'Thông thoáng';
+
+                    return (
+                      <Pressable
+                        key={`traffic-${mode}`}
+                        style={[styles.filterBtn, isActive && styles.filterBtnActive]}
+                        onPress={() => setTrafficFilter(mode)}
+                      >
+                        <Text style={[styles.filterBtnText, isActive && styles.filterBtnTextActive]}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+
+            {/* Clear Filters Indicator */}
+            {(selectedDistrict !== 'Tất cả' || weatherFilter !== 'all' || trafficFilter !== 'all') && (
+              <Pressable
+                style={styles.clearFiltersBtn}
+                onPress={() => {
+                  setSelectedDistrict('Tất cả');
+                  setWeatherFilter('all');
+                  setTrafficFilter('all');
+                }}
+              >
+                <Icon name="refresh" color="#00f2ea" size={14} />
+                <Text style={styles.clearFiltersBtnText}>Đặt lại bộ lọc</Text>
+              </Pressable>
+            )}
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInUp.duration(500).delay(200)} style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>
@@ -465,5 +724,249 @@ const styles = StyleSheet.create({
   },
   clearSearchBtn: {
     padding: 4,
+  },
+  favSection: {
+    marginBottom: 24,
+  },
+  favSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  favSectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  favSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#d4e4fa',
+    letterSpacing: 0.2,
+  },
+  favScrollContent: {
+    gap: 12,
+    paddingRight: 16,
+  },
+  favCameraCard: {
+    width: 140,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(25, 30, 40, 0.45)',
+  },
+  favCameraImageContainer: {
+    height: 90,
+    backgroundColor: '#1e293b',
+    position: 'relative',
+  },
+  favCameraImage: {
+    width: '100%',
+    height: '100%',
+  },
+  favImagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  onlineBadgeMini: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 3,
+    borderRadius: 8,
+  },
+  statusDotMini: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  favHeartBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 5,
+    borderRadius: 12,
+  },
+  favCameraInfo: {
+    padding: 8,
+    gap: 4,
+  },
+  favCameraTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#d4e4fa',
+  },
+  favStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  favStatusText: {
+    fontSize: 9,
+    fontWeight: '700',
+    flex: 1,
+  },
+  favSectionEmpty: {
+    marginBottom: 24,
+  },
+  favEmptyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(25, 30, 40, 0.45)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 12,
+  },
+  favEmptyLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 12,
+  },
+  favEmptyIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favEmptyTextContainer: {
+    flex: 1,
+  },
+  favEmptyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#d4e4fa',
+    marginBottom: 2,
+  },
+  favEmptySubtitle: {
+    fontSize: 11,
+    color: '#849492',
+    lineHeight: 15,
+  },
+  favLoginBtn: {
+    backgroundColor: '#00f2ea',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  favLoginBtnText: {
+    color: '#003735',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  searchDivider: {
+    width: 1,
+    height: 20,
+    marginHorizontal: 12,
+  },
+  filterToggleBtn: {
+    padding: 6,
+  },
+  filtersPanel: {
+    backgroundColor: 'rgba(25, 30, 40, 0.4)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 16,
+    marginBottom: 20,
+    gap: 12,
+  },
+  filterLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#849492',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  districtChipsRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  districtChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  districtChipActive: {
+    backgroundColor: '#00f2ea',
+    borderColor: '#00f2ea',
+  },
+  districtChipText: {
+    color: '#849492',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  districtChipTextActive: {
+    color: '#003735',
+    fontWeight: '700',
+  },
+  filterRowsContainer: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 4,
+  },
+  filterCol: {
+    flex: 1,
+    gap: 8,
+  },
+  filterGroup: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 10,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  filterBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBtnActive: {
+    backgroundColor: 'rgba(0, 242, 234, 0.15)',
+    borderWidth: 1,
+    borderColor: '#00f2ea',
+  },
+  filterBtnText: {
+    color: '#849492',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  filterBtnTextActive: {
+    color: '#00f2ea',
+    fontWeight: '700',
+  },
+  clearFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 234, 0.3)',
+    marginTop: 8,
+  },
+  clearFiltersBtnText: {
+    color: '#00f2ea',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

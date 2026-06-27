@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-import { DarkTheme, DefaultTheme, ThemeProvider as ExpoThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { useColorScheme } from 'react-native';
-=======
 import { DarkTheme, DefaultTheme, ThemeProvider as ExpoThemeProvider, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
