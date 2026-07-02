@@ -1,29 +1,46 @@
 import { useState, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient } from '@/services/api';
 import { WeatherData, WeatherLog, RainingCamera } from '@/types/api';
 
 export const useWeather = () => {
   const queryClient = useQueryClient();
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [logs, setLogs] = useState<WeatherLog[]>([]);
-  const [rainingCameras, setRainingCameras] = useState<RainingCamera[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Shared queries
+  const { data: weather = null } = useQuery<WeatherData | null>({
+    queryKey: ['weather', 'latest'],
+    queryFn: () => null,
+    enabled: false,
+    initialData: null,
+    staleTime: 30_000,
+  });
+
+  const { data: logs = [] } = useQuery<WeatherLog[]>({
+    queryKey: ['weather', 'logs', 'list'],
+    queryFn: () => [],
+    enabled: false,
+    initialData: [],
+    staleTime: 30_000,
+  });
+
+  const { data: rainingCameras = [] } = useQuery<RainingCamera[]>({
+    queryKey: ['weather', 'rainingCameras', 'list'],
+    queryFn: () => [],
+    enabled: false,
+    initialData: [],
+    staleTime: 30_000,
+  });
 
   const getWeatherData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await queryClient.fetchQuery({
-        queryKey: ['weather', 'latest'],
-        queryFn: async () => {
-          const response = await apiClient.getLatestWeather();
-          return response.data;
-        },
-      });
-      setWeather(null);
+      const response = await apiClient.getLatestWeather();
+      const data = response.data;
+      queryClient.setQueryData(['weather', 'latest'], data);
       return data;
     } catch (err: any) {
       const message = err.response?.data?.message || 'Không thể tải dữ liệu thời tiết';
@@ -39,15 +56,9 @@ export const useWeather = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await queryClient.fetchQuery({
-          queryKey: ['weather', 'logs', minutes, limit, onlyWithImages],
-          queryFn: async () => {
-            const response = await apiClient.getWeatherLogs(minutes, limit, onlyWithImages);
-            return response.data;
-          },
-        });
-        const items = data.data ?? [];
-        setLogs(items);
+        const response = await apiClient.getWeatherLogs(minutes, limit, onlyWithImages);
+        const items = response.data.data ?? [];
+        queryClient.setQueryData(['weather', 'logs', 'list'], items);
         return items;
       } catch (err: any) {
         const message = err.response?.data?.message || 'Không thể tải lịch sử thời tiết';
@@ -65,15 +76,9 @@ export const useWeather = () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await queryClient.fetchQuery({
-          queryKey: ['weather', 'raining-cameras', minutes],
-          queryFn: async () => {
-            const response = await apiClient.getRainingCameras(minutes);
-            return response.data;
-          },
-        });
-        const items = data.data ?? [];
-        setRainingCameras(items);
+        const response = await apiClient.getRainingCameras(minutes);
+        const items = response.data.data ?? [];
+        queryClient.setQueryData(['weather', 'rainingCameras', 'list'], items);
         return items;
       } catch (err: any) {
         const message = err.response?.data?.message || 'Không thể tải danh sách camera mưa';
@@ -90,6 +95,8 @@ export const useWeather = () => {
     async (data: { cameraId?: string; isRaining: boolean; note?: string }) => {
       try {
         const response = await apiClient.reportWeather(data);
+        // Invalidate queries to refresh weather data
+        queryClient.invalidateQueries({ queryKey: ['weather'] });
         return response.data;
       } catch (err: any) {
         const message = err.response?.data?.message || 'Không thể gửi báo cáo thời tiết';
@@ -97,7 +104,7 @@ export const useWeather = () => {
         throw err;
       }
     },
-    []
+    [queryClient]
   );
 
   return {
@@ -112,3 +119,4 @@ export const useWeather = () => {
     reportWeather,
   };
 };
+

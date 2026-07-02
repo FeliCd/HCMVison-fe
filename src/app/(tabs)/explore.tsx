@@ -25,9 +25,12 @@ import { WebView } from 'react-native-webview';
 
 import { Icon } from '@/components/icons';
 import { useCamera } from '@/hooks/useCamera';
+import { useFavorites } from '@/hooks/useFavorites';
 import { useTheme } from '@/hooks/useTheme';
 import { useWeather } from '@/hooks/useWeather';
-import { WeatherLog } from '@/types/api';
+import { apiClient } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
+import { Favorite, WeatherLog } from '@/types/api';
 import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -171,7 +174,8 @@ const mapHtml = (isDark: boolean) => `
 export default function TabTwoScreen() {
   const insets = useSafeAreaInsets();
 
-  const [activeSegment, setActiveSegment] = useState<'rain' | 'traffic' | 'combine'>('rain');
+  type SegmentKey = 'all' | 'favorites' | 'raining' | 'congested';
+  const [activeSegment, setActiveSegment] = useState<SegmentKey>('all');
   const [searchText, setSearchText] = useState('');
   const [suggestions, setSuggestions] = useState<MapLocation[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -194,6 +198,8 @@ export default function TabTwoScreen() {
 
   const { logs, getWeatherLogs } = useWeather();
   const { cameras, getCameras } = useCamera();
+  const { favoriteIds } = useFavorites();
+  const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const webViewRef = useRef<WebView>(null);
   const iframeRef = useRef<any>(null);
@@ -202,6 +208,7 @@ export default function TabTwoScreen() {
     getWeatherLogs(60, 500);
     getCameras(undefined, 1, 1000);
   }, [getWeatherLogs, getCameras]);
+
 
   useEffect(() => {
     const latestLogsMap = new Map<string, WeatherLog>();
@@ -261,8 +268,11 @@ export default function TabTwoScreen() {
 
   const syncMarkers = useCallback(() => {
     const filtered = locations.filter(loc => {
-      if (activeSegment === 'combine') return true;
-      return loc.type === activeSegment || loc.type === 'combine';
+      if (activeSegment === 'all') return true;
+      if (activeSegment === 'favorites') return favoriteIds.has(loc.id);
+      if (activeSegment === 'raining') return loc.type === 'rain' || loc.type === 'combine';
+      if (activeSegment === 'congested') return loc.type === 'traffic' || loc.type === 'combine';
+      return true;
     });
     const locsString = JSON.stringify(filtered).replace(/'/g, "\\\\'");
 
@@ -276,7 +286,7 @@ export default function TabTwoScreen() {
         true;
       `);
     }
-  }, [locations, activeSegment]);
+  }, [locations, activeSegment, favoriteIds]);
 
   useEffect(() => {
     syncMarkers();
@@ -427,6 +437,15 @@ export default function TabTwoScreen() {
           style={styles.chipsScrollView}
           contentContainerStyle={styles.chipsContainer}
         >
+          {user && (
+            <View style={[styles.statusChipRed, { backgroundColor: '#fbcfe8', borderColor: '#f472b6' }]}>
+              <Icon name="favorite" color="#f472b6" size={14} />
+              <Text style={[styles.statusChipRedText, { color: '#db2777' }]}>
+                Yêu thích: {locations.filter(l => favoriteIds.has(l.id)).length} camera
+              </Text>
+            </View>
+          )}
+
           <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
             <Icon name="rainy" color={colors.danger} size={14} />
             <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
@@ -434,17 +453,17 @@ export default function TabTwoScreen() {
             </Text>
           </View>
 
-          <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
-            <Icon name="traffic" color={colors.danger} size={14} />
-            <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
+          <View style={[styles.statusChipRed, { backgroundColor: '#fed7aa', borderColor: '#f97316' }]}>
+            <Icon name="traffic" color="#ea580c" size={14} />
+            <Text style={[styles.statusChipRedText, { color: '#c2410c' }]}>
               Kẹt xe/chậm: {locations.filter(l => l.type === 'traffic' || l.type === 'combine').length} điểm
             </Text>
           </View>
         </ScrollView>
 
         <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
-          {(['rain', 'traffic', 'combine'] as const).map((seg) => {
-            const labels = { rain: 'Mưa', traffic: 'Giao thông', combine: 'Kết hợp' };
+          {(['all', 'favorites', 'raining', 'congested'] as const).map((seg) => {
+            const labels = { all: 'Tất cả', favorites: 'Yêu thích', raining: 'Mưa', congested: 'Giao thông' };
             const isActive = activeSegment === seg;
             return (
               <Pressable

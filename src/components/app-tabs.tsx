@@ -113,7 +113,7 @@ export default function AppTabs() {
     >
       <Tabs.Screen name="explore" options={{ title: 'Bản đồ' }} />
       <Tabs.Screen name="route" options={{ title: 'Tuyến đường' }} />
-      <Tabs.Screen name="system-status" options={{ title: 'Tình trạng' }} />
+      <Tabs.Screen name="system-status" options={{ title: 'Camera' }} />
       <Tabs.Screen name="warning" options={{ title: 'Cảnh báo' }} />
       <Tabs.Screen name="more" options={{ title: 'Thêm' }} />
     </Tabs>

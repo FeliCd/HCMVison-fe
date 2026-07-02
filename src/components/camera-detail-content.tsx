@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
+import { useFavorites } from '@/hooks/useFavorites';
 import { apiClient } from '@/services/api';
 import { Camera, WeatherLog } from '@/types/api';
 import { getCameraDisplayImage, mapLatestWeatherByCamera } from '@/utils/camera-weather';
@@ -21,12 +22,13 @@ interface CameraDetailContentProps {
 export default function CameraDetailContent({ id, name, onClose }: CameraDetailContentProps) {
   const insets = useSafeAreaInsets();
   const { isAuthenticated } = useAuth();
+  const { favoriteIds, toggleFavorite, loading: favoriteLoading } = useFavorites();
 
   const [camera, setCamera] = useState<Camera | null>(null);
   const [latestLog, setLatestLog] = useState<WeatherLog | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+  const isFavorite = favoriteIds.has(id);
 
   useEffect(() => {
     if (!id) return;
@@ -47,16 +49,6 @@ export default function CameraDetailContent({ id, name, onClose }: CameraDetailC
         const latestWeather = mapLatestWeatherByCamera(weatherResponse?.data.data || []).get(id) || null;
         setCamera(foundCamera);
         setLatestLog(latestWeather);
-
-        if (isAuthenticated) {
-          const favoriteResponse = await apiClient.getFavorites().catch(() => null);
-          if (!cancelled) {
-            const favorites = favoriteResponse?.data.items || [];
-            setIsFavorite(favorites.some((favorite) => favorite.cameraId === id));
-          }
-        } else {
-          setIsFavorite(false);
-        }
       } catch (error) {
         console.error('CameraDetail fetch error:', error);
       } finally {
@@ -69,27 +61,15 @@ export default function CameraDetailContent({ id, name, onClose }: CameraDetailC
     return () => {
       cancelled = true;
     };
-  }, [id, isAuthenticated]);
+  }, [id]);
 
   const displayImageUrl = useMemo(() => getCameraDisplayImage(camera, latestLog), [camera, latestLog]);
 
-  const toggleFavorite = async () => {
+  const handleToggleFavorite = async () => {
     if (!isAuthenticated || favoriteLoading) return;
-
-    setFavoriteLoading(true);
-    try {
-      if (isFavorite) {
-        await apiClient.removeFavorite(id);
-      } else {
-        await apiClient.addFavorite(id);
-      }
-      setIsFavorite((current) => !current);
-    } catch (error) {
-      console.warn('Favorite update failed', error);
-    } finally {
-      setFavoriteLoading(false);
-    }
+    await toggleFavorite(camera || { id });
   };
+
 
   const handleBack = () => {
     if (onClose) {
@@ -115,7 +95,7 @@ export default function CameraDetailContent({ id, name, onClose }: CameraDetailC
           Chi tiết camera
         </Text>
         {isAuthenticated ? (
-          <Pressable style={styles.favoriteButton} onPress={toggleFavorite} disabled={favoriteLoading}>
+          <Pressable style={styles.favoriteButton} onPress={handleToggleFavorite} disabled={favoriteLoading}>
             {favoriteLoading ? (
               <ActivityIndicator color="#f87171" size="small" />
             ) : (
