@@ -114,6 +114,12 @@ export default function AdminDashboardScreen() {
                 subtitle="Chạy phân tích thử"
                 onPress={() => router.push('/admin/test-ai' as never)}
               />
+              <ActionCard
+                icon="warning"
+                title="Báo cáo AI sai"
+                subtitle="User feedback cần duyệt"
+                onPress={() => router.push('/admin/ai-reports' as never)}
+              />
             </View>
 
             <SectionTitle title="Hoạt động quản trị" />

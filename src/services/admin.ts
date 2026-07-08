@@ -4,6 +4,7 @@ import {
   normalizeAdminStats,
   normalizeAdminUsers,
   normalizeAdminUser,
+  normalizeAdminAiAuditReports,
   normalizeAdminAuditLogs,
   normalizeFailedCameras,
   normalizeCameraHealth,
@@ -17,7 +18,12 @@ export async function getAdminStats() {
 }
 
 export async function getAuditData() {
-  return apiCore.request<any[]>({ method: 'GET', url: '/Admin/audit-data', authPolicy: 'admin' });
+  const response = await apiCore.request({
+    method: 'GET',
+    url: '/Admin/audit-data',
+    authPolicy: 'admin',
+  });
+  return withData(response, normalizeAdminAiAuditReports(response.data));
 }
 
 export async function getUsers({

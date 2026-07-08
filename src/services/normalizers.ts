@@ -1,6 +1,8 @@
 import {
   AdminAccountAuditLog,
   AdminAuditLogResponse,
+  AdminAiAuditReport,
+  AdminAiAuditReportsResponse,
   AdminStats,
   AdminUser,
   AdminUsersResponse,
@@ -327,6 +329,33 @@ export function normalizeAdminAuditLog(raw: unknown): AdminAccountAuditLog {
 export function normalizeAdminAuditLogs(payload: unknown): AdminAuditLogResponse {
   return {
     items: asArray(payload, 'items', 'data').map(normalizeAdminAuditLog),
+  };
+}
+
+export function normalizeAdminAiAuditReport(raw: unknown): AdminAiAuditReport {
+  const cameraId = asString(field(raw, 'cameraId'));
+
+  return {
+    reportId: asNumber(field(raw, 'reportId') ?? field(raw, 'id')),
+    cameraId,
+    cameraName: field<string>(raw, 'cameraName'),
+    userSaid: asString(field(raw, 'userSaid')),
+    aiSaid: asString(field(raw, 'aiSaid')),
+    aiRainLevel: field<string>(raw, 'aiRainLevel'),
+    aiTrafficLevel: field<string>(raw, 'aiTrafficLevel'),
+    aiConfidence: asNumber(field(raw, 'aiConfidence')),
+    imageUrl: toAbsoluteImageUrl(field<string>(raw, 'imageUrl')),
+    reportTime: asString(field(raw, 'reportTime') ?? field(raw, 'timestamp')),
+    note: field<string>(raw, 'note'),
+  };
+}
+
+export function normalizeAdminAiAuditReports(payload: unknown): AdminAiAuditReportsResponse {
+  const items = asArray(payload, 'items', 'data').map(normalizeAdminAiAuditReport);
+
+  return {
+    items,
+    total: asNumber(field(payload, 'total'), items.length),
   };
 }
 

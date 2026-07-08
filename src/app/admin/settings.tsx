@@ -29,6 +29,7 @@ const adminFeatures: SettingLink[] = [
   { icon: 'wifi', title: 'Sức khỏe hệ thống', subtitle: 'Theo dõi camera và stream', href: '/admin/system-health' },
   { icon: 'update', title: 'Đồng bộ dữ liệu', subtitle: 'Theo dõi các phiên quét camera', href: '/admin/ingestion' },
   { icon: 'smart_toy', title: 'Kiểm tra AI', subtitle: 'Chạy phân tích thử cho camera', href: '/admin/test-ai' },
+  { icon: 'warning', title: 'Báo cáo AI sai', subtitle: 'Xem feedback cần kiểm tra lại', href: '/admin/ai-reports' },
   { icon: 'videocam', title: 'Quản lý camera', subtitle: 'Thêm, sửa và cập nhật stream', href: '/admin/manage-cameras' },
 ];
 

@@ -372,6 +372,25 @@ export interface AdminAuditLogResponse {
   items: AdminAccountAuditLog[];
 }
 
+export interface AdminAiAuditReport {
+  reportId: number;
+  cameraId: string;
+  cameraName?: string;
+  userSaid: string;
+  aiSaid: string;
+  aiRainLevel?: string;
+  aiTrafficLevel?: string;
+  aiConfidence: number;
+  imageUrl?: string;
+  reportTime: string;
+  note?: string;
+}
+
+export interface AdminAiAuditReportsResponse {
+  items: AdminAiAuditReport[];
+  total: number;
+}
+
 export interface FailedCamera {
   cameraId: string;
   cameraName: string;
