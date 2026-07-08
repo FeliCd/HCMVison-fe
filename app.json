@@ -46,6 +46,13 @@
           }
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "rain_alerts",
+          "color": "#00f2ea"
+        }
+      ],
       "expo-secure-store"
     ],
     "experiments": {

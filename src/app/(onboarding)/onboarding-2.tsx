@@ -9,6 +9,7 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import { markOnboardingCompleteAsync } from '@/services/onboarding';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -19,6 +20,11 @@ export default function Onboarding2Screen() {
   const btnStyle = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
   }));
+
+  const skipOnboarding = async () => {
+    await markOnboardingCompleteAsync();
+    router.replace('/permission-location');
+  };
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }]}>
@@ -45,7 +51,7 @@ export default function Onboarding2Screen() {
       </View>
 
       <Animated.View entering={FadeInUp.duration(400).delay(600)} style={styles.footer}>
-        <Pressable style={styles.skipButton} onPress={() => router.replace('/permission-location')}>
+        <Pressable style={styles.skipButton} onPress={skipOnboarding}>
           <Text style={styles.skipButtonText}>Bỏ qua</Text>
         </Pressable>
         <AnimatedPressable

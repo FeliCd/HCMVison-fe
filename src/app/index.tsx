@@ -1,15 +1,54 @@
-import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { Redirect } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-export default function HomeScreen() {
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      router.replace('/(tabs)/explore');
-    }, 50);
+import { consumePendingNotificationRoute } from '@/services/NotificationManager';
+import { isOnboardingCompleteAsync } from '@/services/onboarding';
+import WelcomeScreen from './(onboarding)/welcome';
 
-    return () => clearTimeout(timeout);
+type InitialRoute = ReturnType<typeof consumePendingNotificationRoute> | '/(tabs)/explore' | 'welcome';
+
+export default function HomeScreen() {
+  const [initialRoute, setInitialRoute] = useState<InitialRoute | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void (async () => {
+      const notificationRoute = consumePendingNotificationRoute();
+      if (notificationRoute) {
+        if (isMounted) {
+          setInitialRoute(notificationRoute);
+        }
+        return;
+      }
+
+      const onboardingComplete = await isOnboardingCompleteAsync();
+      const lateNotificationRoute = consumePendingNotificationRoute();
+      if (lateNotificationRoute) {
+        if (isMounted) {
+          setInitialRoute(lateNotificationRoute);
+        }
+        return;
+      }
+
+      if (isMounted) {
+        setInitialRoute(onboardingComplete ? '/(tabs)/explore' : 'welcome');
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  if (initialRoute === 'welcome') {
+    return <WelcomeScreen />;
+  }
+
+  if (initialRoute) {
+    return <Redirect href={initialRoute as any} />;
+  }
 
   return (
     <View style={styles.container}>

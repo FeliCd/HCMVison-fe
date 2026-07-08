@@ -13,9 +13,17 @@ import { AppState, Platform } from 'react-native';
 const DEVICE_ID_STORAGE_KEY = 'hcmvision.deviceId';
 const FCM_TOKEN_STORAGE_KEY = 'hcmvision.fcmToken';
 const ANDROID_CHANNEL_ID = 'rain_alerts';
+const NOTIFICATION_NAVIGATION_DELAY_MS = 300;
+const NOTIFICATION_NAVIGATION_RETRY_MS = 350;
+const NOTIFICATION_NAVIGATION_MAX_ATTEMPTS = 8;
 
 type SyncOptions = {
   requestPermission?: boolean;
+};
+
+type NotificationCameraRoute = {
+  pathname: '/cameras';
+  params: { wardId: string };
 };
 
 type RemovableSubscription = {
@@ -29,6 +37,8 @@ const noopSubscription: RemovableSubscription = {
 const isExpoGo = Constants.appOwnership === 'expo';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Notifications = (Platform.OS !== 'web' && !isExpoGo) ? require('expo-notifications') : null;
+let pendingNotificationRoute: NotificationCameraRoute | null = null;
+let notificationNavigationTimer: ReturnType<typeof setTimeout> | null = null;
 
 if (Notifications) {
   try {
@@ -80,7 +90,6 @@ async function ensureAndroidNotificationChannelAsync() {
   await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
     name: 'Rain alerts',
     importance: Notifications.AndroidImportance.HIGH,
-    sound: 'default',
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#00f2ea',
   });
@@ -102,6 +111,64 @@ async function hasNotificationPermissionAsync(requestPermission: boolean) {
 
 function getNativeTokenString(token: NotificationsType.DevicePushToken) {
   return typeof token.data === 'string' ? token.data : null;
+}
+
+function normalizeNotificationDataString(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function getWardIdFromDeeplink(value: unknown) {
+  const deeplink = normalizeNotificationDataString(value);
+  if (!deeplink) {
+    return null;
+  }
+
+  const match = deeplink.match(/(?:^|\/)weather\/ward\/([^/?#]+)/i);
+  if (!match?.[1]) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(match[1]).trim() || null;
+  } catch {
+    return match[1].trim() || null;
+  }
+}
+
+function createNotificationRoute(wardId: string): NotificationCameraRoute {
+  return {
+    pathname: '/cameras',
+    params: { wardId },
+  };
+}
+
+export function consumePendingNotificationRoute() {
+  const route = pendingNotificationRoute;
+  pendingNotificationRoute = null;
+  return route;
+}
+
+function scheduleNotificationNavigation(route: NotificationCameraRoute, attempt = 0) {
+  pendingNotificationRoute = route;
+
+  if (notificationNavigationTimer) {
+    clearTimeout(notificationNavigationTimer);
+  }
+
+  const delay = attempt === 0 ? NOTIFICATION_NAVIGATION_DELAY_MS : NOTIFICATION_NAVIGATION_RETRY_MS;
+  notificationNavigationTimer = setTimeout(() => {
+    try {
+      router.replace(route);
+      pendingNotificationRoute = null;
+    } catch (error) {
+      if (attempt < NOTIFICATION_NAVIGATION_MAX_ATTEMPTS) {
+        scheduleNotificationNavigation(route, attempt + 1);
+        return;
+      }
+
+      console.warn('Failed to navigate from notification response.', error);
+    }
+  }, delay);
 }
 
 export async function registerForPushNotificationsAsync(options: SyncOptions = {}) {
@@ -219,8 +286,9 @@ export function addAuthenticatedAppStateSyncListener() {
 }
 
 function getWardIdFromNotification(response: NotificationsType.NotificationResponse) {
-  const wardId = response.notification.request.content.data?.wardId;
-  return typeof wardId === 'string' && wardId.trim().length > 0 ? wardId.trim() : null;
+  const data = response.notification.request.content.data ?? {};
+  const wardId = normalizeNotificationDataString(data.wardId);
+  return wardId ?? getWardIdFromDeeplink(data.deeplink) ?? getWardIdFromDeeplink(data.url);
 }
 
 export function handleNotificationResponse(response: NotificationsType.NotificationResponse | null) {
@@ -233,10 +301,7 @@ export function handleNotificationResponse(response: NotificationsType.Notificat
     return;
   }
 
-  router.push({
-    pathname: '/cameras',
-    params: { wardId },
-  });
+  scheduleNotificationNavigation(createNotificationRoute(wardId));
 }
 
 function getLastNotificationResponseSafely() {

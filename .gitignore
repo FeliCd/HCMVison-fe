@@ -39,6 +39,7 @@ yarn-error.*
 # local demo artifacts
 TEST_REPORT_*.md
 builds/
+.codex-logs/
 
 example
 

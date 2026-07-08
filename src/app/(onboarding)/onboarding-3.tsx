@@ -9,6 +9,7 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import { Icon } from '@/components/icons';
+import { markOnboardingCompleteAsync } from '@/services/onboarding';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -19,6 +20,11 @@ export default function Onboarding3Screen() {
   const btnStyle = useAnimatedStyle(() => ({
     transform: [{ scale: btnScale.value }],
   }));
+
+  const finishOnboarding = async () => {
+    await markOnboardingCompleteAsync();
+    router.replace('/permission-location');
+  };
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 24), paddingBottom: Math.max(insets.bottom, 24) }]}>
@@ -49,7 +55,7 @@ export default function Onboarding3Screen() {
           style={[styles.nextButtonFull, btnStyle]}
           onPressIn={() => { btnScale.value = withSpring(0.95, { damping: 12 }); }}
           onPressOut={() => { btnScale.value = withSpring(1, { damping: 12 }); }}
-          onPress={() => router.push('/permission-location')}
+          onPress={finishOnboarding}
         >
           <Text style={styles.nextButtonText}>Cấp quyền để bắt đầu</Text>
           <Icon name="arrow_forward" color="#003735" size={18} />

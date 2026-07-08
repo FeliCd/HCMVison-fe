@@ -1,11 +1,12 @@
 import { testWeatherAI } from '@/services/weather';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -36,6 +37,42 @@ export default function TestAIScreen() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AiTestResult | null>(null);
 
+  const applyPickerResult = useCallback((pickerResult: ImagePicker.ImagePickerResult) => {
+    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
+      setImage(pickerResult.assets[0]);
+      setResult(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    let mounted = true;
+
+    void ImagePicker.getPendingResultAsync()
+      .then((pendingResult) => {
+        if (!mounted || !pendingResult) {
+          return;
+        }
+
+        if ('code' in pendingResult) {
+          Alert.alert('Khong the khoi phuc anh', pendingResult.message);
+          return;
+        }
+
+        applyPickerResult(pendingResult);
+      })
+      .catch((error) => {
+        console.warn('Failed to recover pending image picker result.', error);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [applyPickerResult]);
+
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -45,14 +82,11 @@ export default function TestAIScreen() {
 
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: Platform.OS !== 'android',
       quality: 0.8,
     });
 
-    if (!pickerResult.canceled && pickerResult.assets.length > 0) {
-      setImage(pickerResult.assets[0]);
-      setResult(null);
-    }
+    applyPickerResult(pickerResult);
   };
 
   const handleTestAI = async () => {

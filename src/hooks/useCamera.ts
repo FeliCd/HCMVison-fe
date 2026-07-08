@@ -44,14 +44,16 @@ export const useCamera = () => {
     try {
       setLoading(true);
       setError(null);
-      const normalizedQuery = {
+      const wardId = query.wardId?.trim();
+      const districtName = query.districtName?.trim();
+      const normalizedQuery: CameraStatusQuery = {
         page: query.page ?? 1,
         pageSize: query.pageSize ?? 50,
-        wardId: query.wardId ?? '',
-        districtName: query.districtName ?? '',
         rain: query.rain ?? 'all',
         traffic: query.traffic ?? 'all',
         favoriteOnly: query.favoriteOnly ?? false,
+        ...(wardId ? { wardId } : {}),
+        ...(districtName ? { districtName } : {}),
       };
       const data = await queryClient.fetchQuery({
         queryKey: ['camera-status', normalizedQuery],

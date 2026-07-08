@@ -31,7 +31,7 @@ import { CameraStatusItem } from '@/types/api';
 import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-const MAP_CAMERA_PAGE_SIZE = 150;
+const MAP_CAMERA_PAGE_SIZE = 100;
 const MARKER_SYNC_DELAY_MS = 600;
 
 // Cấu trúc location cho map
