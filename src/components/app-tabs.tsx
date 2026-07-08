@@ -1,11 +1,9 @@
 import { Tabs } from 'expo-router';
-import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,21 +13,9 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function TabButton({ route, isFocused, onPress, label }: any) {
   const scale = useSharedValue(1);
-  const indicatorWidth = useSharedValue(isFocused ? 20 : 0);
-  const indicatorOpacity = useSharedValue(isFocused ? 1 : 0);
-
-  useEffect(() => {
-    indicatorWidth.value = withSpring(isFocused ? 20 : 0, { damping: 15, stiffness: 180 });
-    indicatorOpacity.value = withTiming(isFocused ? 1 : 0, { duration: 250 });
-  }, [indicatorOpacity, indicatorWidth, isFocused]);
 
   const pressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-  }));
-
-  const indicatorStyle = useAnimatedStyle(() => ({
-    width: indicatorWidth.value,
-    opacity: indicatorOpacity.value,
   }));
 
   let iconName: IconName = 'map';
@@ -53,7 +39,7 @@ function TabButton({ route, isFocused, onPress, label }: any) {
     >
       <Icon name={iconName} color={color} size={21} />
       <Text style={[styles.tabLabel, { color }, isFocused && styles.tabLabelActive]}>{label}</Text>
-      <Animated.View style={[styles.indicator, indicatorStyle]} />
+      <View style={[styles.indicatorSlot, isFocused && styles.indicator]} />
     </AnimatedPressable>
   );
 }
@@ -113,7 +99,7 @@ export default function AppTabs() {
     >
       <Tabs.Screen name="explore" options={{ title: 'Bản đồ' }} />
       <Tabs.Screen name="route" options={{ title: 'Tuyến đường' }} />
-      <Tabs.Screen name="system-status" options={{ title: 'Tình trạng' }} />
+      <Tabs.Screen name="system-status" options={{ title: 'Camera' }} />
       <Tabs.Screen name="warning" options={{ title: 'Cảnh báo' }} />
       <Tabs.Screen name="more" options={{ title: 'Thêm' }} />
     </Tabs>
@@ -163,9 +149,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   indicator: {
+    width: 20,
     height: 3,
     borderRadius: 1.5,
     backgroundColor: '#00f2ea',
+    marginTop: 3,
+  },
+  indicatorSlot: {
+    width: 20,
+    height: 3,
     marginTop: 3,
   },
 });

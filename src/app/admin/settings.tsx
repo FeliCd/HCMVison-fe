@@ -16,7 +16,7 @@ interface SettingLink {
 const userFeatures: SettingLink[] = [
   { icon: 'map', title: 'Bản đồ', subtitle: 'Theo dõi camera theo khu vực', href: '/(tabs)/explore' },
   { icon: 'directions_car', title: 'Tuyến đường', subtitle: 'Kiểm tra rủi ro khi di chuyển', href: '/(tabs)/route' },
-  { icon: 'videocam', title: 'Tình trạng', subtitle: 'Xem ảnh và trạng thái camera', href: '/(tabs)/system-status' },
+  { icon: 'videocam', title: 'Camera', subtitle: 'Xem ảnh và trạng thái camera', href: '/(tabs)/system-status' },
   { icon: 'notifications', title: 'Cảnh báo', subtitle: 'Xem cảnh báo công khai', href: '/(tabs)/warning' },
   { icon: 'smart_toy', title: 'Trợ lý AI', subtitle: 'Hỏi đáp mưa và giao thông', href: '/chatbot' },
   { icon: 'person_outline', title: 'Hồ sơ', subtitle: 'Cập nhật thông tin cá nhân', href: '/profile/edit' },

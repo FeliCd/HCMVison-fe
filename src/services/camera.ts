@@ -1,5 +1,6 @@
 import { apiCore, withData } from './core';
-import { normalizeCameraList } from './normalizers';
+import { normalizeCameraList, normalizeCameraStatusResponse } from './normalizers';
+import { CameraStatusQuery } from '@/types/api';
 
 export async function getCameras(search?: string, sortBy?: string, page = 1, pageSize = 10) {
   const response = await apiCore.request({
@@ -9,6 +10,24 @@ export async function getCameras(search?: string, sortBy?: string, page = 1, pag
     authPolicy: 'public',
   });
   return withData(response, normalizeCameraList(response.data));
+}
+
+export async function getCameraStatus(query: CameraStatusQuery = {}) {
+  const response = await apiCore.request({
+    method: 'GET',
+    url: '/Camera/status',
+    params: {
+      page: query.page ?? 1,
+      pageSize: query.pageSize ?? 50,
+      wardId: query.wardId,
+      districtName: query.districtName,
+      rain: query.rain ?? 'all',
+      traffic: query.traffic ?? 'all',
+      favoriteOnly: query.favoriteOnly ?? false,
+    },
+    authPolicy: query.favoriteOnly ? 'required' : 'optional',
+  });
+  return withData(response, normalizeCameraStatusResponse(response.data));
 }
 
 export async function createCamera(data: {

@@ -26,12 +26,13 @@ import { WebView } from 'react-native-webview';
 import { Icon } from '@/components/icons';
 import { useCamera } from '@/hooks/useCamera';
 import { useTheme } from '@/hooks/useTheme';
-import { useWeather } from '@/hooks/useWeather';
 import { syncCurrentUserLocationAsync } from '@/services/location';
-import { WeatherLog } from '@/types/api';
+import { CameraStatusItem } from '@/types/api';
 import { formatRainLevel, formatTrafficLevel } from '@/utils/weather-display';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const MAP_CAMERA_PAGE_SIZE = 150;
+const MARKER_SYNC_DELAY_MS = 600;
 
 // Cấu trúc location cho map
 type MapLocation = {
@@ -41,27 +42,68 @@ type MapLocation = {
   lat: number;
   lng: number;
   status: string;
-  type: 'rain' | 'traffic' | 'combine';
   markerColor: string;
 };
 
-// Convert WeatherLog → MapLocation
-function toMapLocation(log: WeatherLog): MapLocation {
-  const isJam = log.trafficLevel === 'jam' || log.trafficLevel === 'slow';
-  const type: MapLocation['type'] = log.isRaining && isJam ? 'combine' : log.isRaining ? 'rain' : 'traffic';
-  let markerColor = '#10b981'; // Default green
-  if (type === 'combine' || type === 'rain') markerColor = '#ffb4ab'; // Red
-  else if (isJam) markerColor = '#f59e0b'; // Orange
+function normalizeSearchText(value?: string | null) {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
+function getMapMarkerColor(item: CameraStatusItem) {
+  const trafficLevel = (item.trafficLevel || '').toLowerCase();
+
+  if (!item.hasFreshWeatherData || trafficLevel === 'unknown') {
+    return '#94a3b8';
+  }
+
+  if (trafficLevel === 'jam') {
+    return '#ef4444';
+  }
+
+  if (trafficLevel === 'slow' || item.isTrafficJammed) {
+    return '#f59e0b';
+  }
+
+  if (item.isRaining) {
+    return '#38bdf8';
+  }
+
+  if (trafficLevel === 'clear') {
+    return '#10b981';
+  }
+
+  return '#94a3b8';
+}
+
+function getMapStatusText(item: CameraStatusItem) {
+  if (!item.hasFreshWeatherData) {
+    return 'Chưa có dữ liệu';
+  }
+
+  const rainText = item.isRaining ? formatRainLevel(item.rainLevel) : 'Không mưa';
+  const trafficText = formatTrafficLevel(item.trafficLevel);
+  return `${rainText} - ${trafficText}`;
+}
+
+// Convert CameraStatusItem → MapLocation
+function toMapLocation(item: CameraStatusItem): MapLocation | null {
+  if (!Number.isFinite(item.latitude) || !Number.isFinite(item.longitude)) {
+    return null;
+  }
 
   return {
-    id: log.cameraId,
-    name: log.cameraName || log.cameraId,
-    address: log.districtName || log.wardName || log.cameraId,
-    lat: log.latitude,
-    lng: log.longitude,
-    status: `${formatRainLevel(log.rainLevel)} - ${formatTrafficLevel(log.trafficLevel)}`,
-    type,
-    markerColor,
+    id: item.cameraId,
+    name: item.cameraName || item.cameraId,
+    address: item.wardName || item.districtName || 'Khu vực',
+    lat: item.latitude,
+    lng: item.longitude,
+    status: getMapStatusText(item),
+    markerColor: getMapMarkerColor(item),
   };
 }
 
@@ -107,34 +149,73 @@ const mapHtml = (isDark: boolean) => `
             attribution: '© Google'
         }).addTo(map);
 
-        window.activeMarkers = [];
         window.markerMap = {};
 
+        window.escapeHtml = function(value) {
+            return String(value || '').replace(/[&<>"']/g, function(match) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[match];
+            });
+        };
+
+        window.createCameraIcon = function(color) {
+            var iconHtml = '' +
+                '<div style="background-color:' + color + ';width:28px;height:28px;border-radius:14px;border:2px solid white;box-shadow:0 0 10px ' + color + ';display:flex;align-items:center;justify-content:center;">' +
+                    '<div style="position:relative;width:14px;height:10px;border:2px solid white;border-radius:3px;box-sizing:border-box;">' +
+                        '<div style="position:absolute;right:-7px;top:1px;width:0;height:0;border-top:3px solid transparent;border-bottom:3px solid transparent;border-left:6px solid white;"></div>' +
+                    '</div>' +
+                '</div>';
+
+            return L.divIcon({
+                className: 'camera-marker',
+                html: iconHtml,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+                popupAnchor: [0, -14]
+            });
+        };
+
         window.setMarkers = function(locsJson) {
-            if (window.activeMarkers) {
-                window.activeMarkers.forEach(m => map.removeLayer(m));
-            }
-            window.activeMarkers = [];
-            window.markerMap = {};
+            var locs = JSON.parse(locsJson || '[]');
+            var nextIds = {};
 
-            var locs = JSON.parse(locsJson);
             locs.forEach(function(loc) {
-                var iconHtml = '<div style="background-color:' + loc.markerColor + ';width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow: 0 0 8px ' + loc.markerColor + ';"></div>';
-                var customIcon = L.divIcon({className: 'custom-icon', html: iconHtml});
-                var marker = L.marker([loc.lat, loc.lng], {icon: customIcon}).addTo(map);
-                marker.bindPopup("<b>" + loc.name + "</b><br>" + loc.status);
+                nextIds[loc.id] = true;
+                var popupHtml = '<b>' + window.escapeHtml(loc.name) + '</b><br>' + window.escapeHtml(loc.status);
+                var marker = window.markerMap[loc.id];
+                var icon = window.createCameraIcon(loc.markerColor);
 
-                marker.on('click', function() {
-                    var msg = { type: 'MARKER_CLICKED', id: loc.id, name: loc.name };
-                    if (window.ReactNativeWebView) {
-                        window.ReactNativeWebView.postMessage(JSON.stringify(msg));
-                    } else {
-                        window.parent.postMessage(msg, '*');
-                    }
-                });
+                if (marker) {
+                    marker.setLatLng([loc.lat, loc.lng]);
+                    marker.setIcon(icon);
+                    marker.setPopupContent(popupHtml);
+                } else {
+                    marker = L.marker([loc.lat, loc.lng], {icon: icon}).addTo(map);
+                    marker.bindPopup(popupHtml);
 
-                window.activeMarkers.push(marker);
-                window.markerMap[loc.id] = marker;
+                    marker.on('click', function() {
+                        var msg = { type: 'MARKER_CLICKED', id: loc.id, name: loc.name };
+                        if (window.ReactNativeWebView) {
+                            window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+                        } else {
+                            window.parent.postMessage(msg, '*');
+                        }
+                    });
+
+                    window.markerMap[loc.id] = marker;
+                }
+            });
+
+            Object.keys(window.markerMap).forEach(function(id) {
+                if (!nextIds[id]) {
+                    map.removeLayer(window.markerMap[id]);
+                    delete window.markerMap[id];
+                }
             });
         };
 
@@ -172,11 +253,9 @@ const mapHtml = (isDark: boolean) => `
 export default function TabTwoScreen() {
   const insets = useSafeAreaInsets();
 
-  const [activeSegment, setActiveSegment] = useState<'rain' | 'traffic' | 'combine'>('rain');
   const [searchText, setSearchText] = useState('');
   const [suggestions, setSuggestions] = useState<MapLocation[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [locations, setLocations] = useState<MapLocation[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [selectedCameraName, setSelectedCameraName] = useState<string | null>(null);
 
@@ -193,68 +272,29 @@ export default function TabTwoScreen() {
     }
   }, []);
 
-  const { logs, getWeatherLogs } = useWeather();
-  const { cameras, getCameras } = useCamera();
+  const { cameraStatusItems, getCameraStatus } = useCamera();
   const { colors, isDark } = useTheme();
   const webViewRef = useRef<WebView>(null);
   const iframeRef = useRef<any>(null);
+  const markerSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMarkerPayloadRef = useRef('');
 
   useEffect(() => {
-    // The map remains useful with its base tiles when the API is temporarily
-    // unavailable. Handle both startup requests so a network failure does not
-    // become an unhandled promise rejection in the app's error overlay.
-    void Promise.allSettled([
-      getWeatherLogs(60, 500),
-      getCameras(undefined, 1, 1000),
-    ]);
-  }, [getWeatherLogs, getCameras]);
-
-  useEffect(() => {
-    const latestLogsMap = new Map<string, WeatherLog>();
-    logs.forEach(log => {
-      if (!latestLogsMap.has(log.cameraId)) {
-        latestLogsMap.set(log.cameraId, log);
-      }
+    void getCameraStatus({
+      page: 1,
+      pageSize: MAP_CAMERA_PAGE_SIZE,
+      rain: 'all',
+      traffic: 'all',
+      favoriteOnly: false,
+    }).catch((error) => {
+      console.warn('Failed to load camera markers for map', error);
     });
+  }, [getCameraStatus]);
 
-    const mergedLocations: MapLocation[] = cameras.map(camera => {
-      const log = latestLogsMap.get(camera.id);
-      if (log) {
-        return toMapLocation(log);
-      }
-      return {
-        id: camera.id,
-        name: camera.name || camera.id,
-        address: camera.wardName || 'Khu vực',
-        lat: camera.latitude,
-        lng: camera.longitude,
-        status: 'Chưa có thông tin thời tiết',
-        type: 'combine',
-        markerColor: '#94a3b8',
-      };
-    });
-
-    const cameraIds = new Set(cameras.map(c => c.id));
-    latestLogsMap.forEach(log => {
-      if (!cameraIds.has(log.cameraId)) {
-        mergedLocations.push(toMapLocation(log));
-      }
-    });
-
-    setLocations(mergedLocations);
-  }, [logs, cameras]);
-
-  const { rainingCount, jamCount } = useMemo(() => {
-    const latestLogsMap = new Map<string, WeatherLog>();
-    logs.forEach(log => {
-      if (!latestLogsMap.has(log.cameraId)) {
-        latestLogsMap.set(log.cameraId, log);
-      }
-    });
-    const rain = Array.from(latestLogsMap.values()).filter(log => log.isRaining).length;
-    const jam = Array.from(latestLogsMap.values()).filter(log => log.trafficLevel === 'jam' || log.trafficLevel === 'slow').length;
-    return { rainingCount: rain, jamCount: jam };
-  }, [logs]);
+  const locations = useMemo(
+    () => cameraStatusItems.map(toMapLocation).filter((loc): loc is MapLocation => Boolean(loc)),
+    [cameraStatusItems]
+  );
 
   const bottomBarHeight = 64 + insets.bottom;
   const fabsBottom = bottomBarHeight + 16;
@@ -277,37 +317,51 @@ export default function TabTwoScreen() {
     transform: [{ scale: locScale.value }],
   }));
 
-  const syncMarkers = useCallback(() => {
-    const filtered = locations.filter(loc => {
-      if (activeSegment === 'combine') return true;
-      return loc.type === activeSegment || loc.type === 'combine';
-    });
-    const locsString = JSON.stringify(filtered).replace(/'/g, "\\\\'");
+  const markerPayload = useMemo(() => JSON.stringify(locations), [locations]);
 
-    if (Platform.OS === 'web') {
-      iframeRef.current?.contentWindow?.postMessage({ type: 'SYNC_MARKERS', data: locsString }, '*');
-    } else {
-      webViewRef.current?.injectJavaScript(`
-        if (window.setMarkers) {
-          window.setMarkers('${locsString}');
-        }
-        true;
-      `);
+  const syncMarkers = useCallback((force = false) => {
+    if (!force && markerPayload === lastMarkerPayloadRef.current) {
+      return;
     }
-  }, [locations, activeSegment]);
+
+    if (markerSyncTimeoutRef.current) {
+      clearTimeout(markerSyncTimeoutRef.current);
+    }
+
+    markerSyncTimeoutRef.current = setTimeout(() => {
+      lastMarkerPayloadRef.current = markerPayload;
+      if (Platform.OS === 'web') {
+        iframeRef.current?.contentWindow?.postMessage({ type: 'SYNC_MARKERS', data: markerPayload }, '*');
+      } else {
+        webViewRef.current?.injectJavaScript(`
+          if (window.setMarkers) {
+            window.setMarkers(${JSON.stringify(markerPayload)});
+          }
+          true;
+        `);
+      }
+    }, force ? 0 : MARKER_SYNC_DELAY_MS);
+  }, [markerPayload]);
 
   useEffect(() => {
     syncMarkers();
   }, [syncMarkers]);
 
+  useEffect(() => {
+    return () => {
+      if (markerSyncTimeoutRef.current) {
+        clearTimeout(markerSyncTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleSearchChange = (text: string) => {
     setSearchText(text);
     if (text.trim().length > 0) {
+      const normalizedQuery = normalizeSearchText(text);
       const filtered = locations.filter(loc =>
-        loc.name.toLowerCase().includes(text.toLowerCase()) ||
-        loc.address.toLowerCase().includes(text.toLowerCase()) ||
-        loc.status.toLowerCase().includes(text.toLowerCase())
-      );
+        normalizeSearchText(`${loc.name} ${loc.address} ${loc.status}`).includes(normalizedQuery)
+      ).slice(0, 30);
       setSuggestions(filtered);
       setShowSuggestions(true);
     } else {
@@ -326,7 +380,7 @@ export default function TabTwoScreen() {
     } else {
       webViewRef.current?.injectJavaScript(`
         if (window.focusLocation) {
-          window.focusLocation('${loc.id}', ${loc.lat}, ${loc.lng}, 15);
+          window.focusLocation(${JSON.stringify(loc.id)}, ${loc.lat}, ${loc.lng}, 15);
         }
         true;
       `);
@@ -369,7 +423,7 @@ export default function TabTwoScreen() {
           ref={iframeRef}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', border: 'none' }}
           srcDoc={mapHtml(isDark)}
-          onLoad={() => syncMarkers()}
+          onLoad={() => syncMarkers(true)}
         />
       ) : (
         <WebView
@@ -378,7 +432,7 @@ export default function TabTwoScreen() {
           source={{ html: mapHtml(isDark) }}
           scrollEnabled={false}
           bounces={false}
-          onLoadEnd={syncMarkers}
+          onLoadEnd={() => syncMarkers(true)}
           onMessage={(event) => {
             try {
               const data = JSON.parse(event.nativeEvent.data);
@@ -443,63 +497,9 @@ export default function TabTwoScreen() {
             </View>
           )}
         </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipsScrollView}
-          contentContainerStyle={styles.chipsContainer}
-        >
-          <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
-            <Icon name="rainy" color={colors.danger} size={14} />
-            <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
-              Đang mưa: {rainingCount} camera
-            </Text>
-          </View>
-
-          <View style={[styles.statusChipRed, { backgroundColor: colors.dangerMuted, borderColor: colors.danger }]}>
-            <Icon name="traffic" color={colors.danger} size={14} />
-            <Text style={[styles.statusChipRedText, { color: colors.danger }]}>
-              Kẹt xe/chậm: {jamCount} điểm
-            </Text>
-          </View>
-        </ScrollView>
-
-        <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceHighlight, borderColor: colors.border }]}>
-          {(['rain', 'traffic', 'combine'] as const).map((seg) => {
-            const isActive = activeSegment === seg;
-            const iconColor = isActive ? colors.primary : colors.textMuted;
-            
-            let iconComponent;
-            if (seg === 'rain') {
-              iconComponent = <Icon name="rainy" color={iconColor} size={18} />;
-            } else if (seg === 'traffic') {
-              iconComponent = <Icon name="traffic" color={iconColor} size={18} />;
-            } else {
-              iconComponent = (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                  <Icon name="rainy" color={iconColor} size={15} />
-                  <Icon name="traffic" color={iconColor} size={15} />
-                </View>
-              );
-            }
-
-            return (
-              <Pressable
-                key={seg}
-                onPress={() => setActiveSegment(seg)}
-                style={[styles.segmentBtn, isActive && { backgroundColor: colors.surface, borderColor: colors.border }]}
-              >
-                {iconComponent}
-              </Pressable>
-            );
-          })}
-        </View>
       </View>
 
       <View style={[styles.fabsContainer, { bottom: fabsBottom }]}>
-
-
         <AnimatedPressable
           style={[styles.fabItem, styles.fabLocation, locStyle, { backgroundColor: colors.primary }]}
           onPressIn={() => { locScale.value = withSpring(0.88, { damping: 12 }); }}
@@ -614,50 +614,6 @@ const styles = StyleSheet.create({
   suggestionAddress: {
     fontSize: 11,
     marginTop: 2,
-  },
-  chipsScrollView: {
-    flexGrow: 0,
-  },
-  chipsContainer: {
-    gap: 8,
-    flexDirection: 'row',
-  },
-  statusChipRed: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  statusChipRedText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 3,
-    marginTop: 2,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 11,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   fabsContainer: {
     position: 'absolute',

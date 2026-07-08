@@ -57,6 +57,60 @@ export interface CameraListResponse {
   pageSize: number;
 }
 
+export type CameraRainFilter = 'all' | 'raining' | 'not_raining';
+export type CameraTrafficFilter = 'all' | 'jammed' | 'not_jammed';
+
+export interface CameraStatusQuery {
+  page?: number;
+  pageSize?: number;
+  wardId?: string;
+  districtName?: string;
+  rain?: CameraRainFilter;
+  traffic?: CameraTrafficFilter;
+  favoriteOnly?: boolean;
+}
+
+export interface CameraStatusItem {
+  cameraId: string;
+  cameraName: string;
+  latitude: number;
+  longitude: number;
+  wardId?: string;
+  wardName?: string;
+  districtName?: string;
+  streamUrl?: string;
+  streamType?: string;
+  cameraStatus: string;
+  hasFreshWeatherData: boolean;
+  weatherStatusText?: string;
+  isRaining: boolean;
+  rainLevel?: string;
+  trafficLevel?: string;
+  isTrafficJammed: boolean;
+  confidence?: number;
+  lastUpdatedAtUtc?: string;
+  timeAgo?: string;
+  imageUrl?: string;
+  rawImageUrl?: string;
+  imageIsRedacted?: boolean;
+  isFavorite?: boolean;
+}
+
+export interface CameraStatusResponse {
+  data: CameraStatusItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  timeLimitUtc?: string;
+  filters?: {
+    wardId?: string;
+    districtName?: string;
+    rain?: CameraRainFilter;
+    traffic?: CameraTrafficFilter;
+    favoriteOnly?: boolean;
+  };
+}
+
 export interface CreateCameraRequest {
   id: string;
   name: string;

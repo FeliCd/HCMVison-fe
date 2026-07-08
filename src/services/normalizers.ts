@@ -9,6 +9,8 @@ import {
   CameraHealth,
   CameraHealthResponse,
   CameraListResponse,
+  CameraStatusItem,
+  CameraStatusResponse,
   FailedCamera,
   Favorite,
   FavoriteListResponse,
@@ -103,6 +105,62 @@ export function normalizeCameraList(payload: unknown): CameraListResponse {
   const pageSize = asNumber(field(payload, 'pageSize'), data.length || 10);
 
   return { data, total, page, pageSize };
+}
+
+export function normalizeCameraStatusItem(raw: unknown): CameraStatusItem {
+  const cameraId = asString(field(raw, 'cameraId') ?? field(raw, 'id'));
+  const streamUrl = field<string>(raw, 'streamUrl');
+  const imageUrl = field<string>(raw, 'imageUrl') ?? streamUrl;
+
+  return {
+    cameraId,
+    cameraName: asString(field(raw, 'cameraName') ?? field(raw, 'name'), cameraId),
+    latitude: asNumber(field(raw, 'latitude')),
+    longitude: asNumber(field(raw, 'longitude')),
+    wardId: field<string>(raw, 'wardId'),
+    wardName: field<string>(raw, 'wardName'),
+    districtName: field<string>(raw, 'districtName'),
+    streamUrl,
+    streamType: field<string>(raw, 'streamType'),
+    cameraStatus: asString(field(raw, 'cameraStatus') ?? field(raw, 'status'), 'Offline'),
+    hasFreshWeatherData: asBool(field(raw, 'hasFreshWeatherData')),
+    weatherStatusText: field<string>(raw, 'weatherStatusText'),
+    isRaining: asBool(field(raw, 'isRaining')),
+    rainLevel: field<string>(raw, 'rainLevel'),
+    trafficLevel: field<string>(raw, 'trafficLevel'),
+    isTrafficJammed: asBool(field(raw, 'isTrafficJammed')),
+    confidence: field(raw, 'confidence') === undefined ? undefined : asNumber(field(raw, 'confidence')),
+    lastUpdatedAtUtc: field<string>(raw, 'lastUpdatedAtUtc') ?? field<string>(raw, 'lastUpdatedAt'),
+    timeAgo: field<string>(raw, 'timeAgo'),
+    imageUrl: toAbsoluteImageUrl(imageUrl),
+    rawImageUrl: toAbsoluteImageUrl(field<string>(raw, 'rawImageUrl')),
+    imageIsRedacted: field(raw, 'imageIsRedacted') === undefined ? undefined : asBool(field(raw, 'imageIsRedacted')),
+    isFavorite: field(raw, 'isFavorite') === undefined ? undefined : asBool(field(raw, 'isFavorite')),
+  };
+}
+
+export function normalizeCameraStatusResponse(payload: unknown): CameraStatusResponse {
+  const data = asArray(payload, 'data', 'items', 'cameras')
+    .map(normalizeCameraStatusItem)
+    .filter((camera) => camera.cameraId);
+  const filtersRaw = field<Record<string, unknown>>(payload, 'filters');
+
+  return {
+    data,
+    total: asNumber(field(payload, 'total'), data.length),
+    page: asNumber(field(payload, 'page'), 1),
+    pageSize: asNumber(field(payload, 'pageSize'), data.length || 20),
+    timeLimitUtc: field<string>(payload, 'timeLimitUtc'),
+    filters: filtersRaw
+      ? {
+          wardId: field<string>(filtersRaw, 'wardId'),
+          districtName: field<string>(filtersRaw, 'districtName'),
+          rain: field<any>(filtersRaw, 'rain'),
+          traffic: field<any>(filtersRaw, 'traffic'),
+          favoriteOnly: asBool(field(filtersRaw, 'favoriteOnly')),
+        }
+      : undefined,
+  };
 }
 
 export function normalizeWeatherLog(raw: unknown): WeatherLog {

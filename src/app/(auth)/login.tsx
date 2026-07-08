@@ -1,7 +1,7 @@
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,6 +22,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const SLOW_LOGIN_THRESHOLD_MS = 8000;
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -29,6 +30,7 @@ export default function LoginScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showSlowLogin, setShowSlowLogin] = useState(false);
 
   const btnScale = useSharedValue(1);
   const btnStyle = useAnimatedStyle(() => ({
@@ -38,6 +40,7 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) return;
     clearError();
+    setShowSlowLogin(false);
     try {
       await login(username.trim(), password);
       // useAuth.login() tự redirect sang /(tabs)/explore sau khi thành công
@@ -45,6 +48,19 @@ export default function LoginScreen() {
       // error đã được set trong useAuth
     }
   };
+
+  useEffect(() => {
+    if (!isLoading) {
+      setShowSlowLogin(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setShowSlowLogin(true);
+    }, SLOW_LOGIN_THRESHOLD_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [isLoading]);
 
   return (
     <KeyboardAvoidingView
@@ -151,6 +167,11 @@ export default function LoginScreen() {
                 <Text style={styles.loginButtonText}>Đăng nhập</Text>
               )}
             </AnimatedPressable>
+            {showSlowLogin ? (
+              <Text style={styles.pendingHelpText}>
+                Đăng nhập đang lâu hơn bình thường. Nếu kết nối bị lỗi, bạn sẽ có thể thử lại sau khi request hết thời gian chờ.
+              </Text>
+            ) : null}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
 
@@ -332,6 +353,12 @@ const styles = StyleSheet.create({
     color: '#003735',
     fontSize: 15,
     fontWeight: '700',
+  },
+  pendingHelpText: {
+    color: '#b9cac8',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   secondaryActions: {
     marginTop: 24,

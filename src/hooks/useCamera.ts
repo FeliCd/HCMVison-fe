@@ -1,8 +1,8 @@
-import { getCameras as apiGetCameras, createCamera as apiCreateCamera, updateCamera as apiUpdateCamera, deleteCamera as apiDeleteCamera } from '@/services/camera';
+import { getCameras as apiGetCameras, getCameraStatus as apiGetCameraStatus, createCamera as apiCreateCamera, updateCamera as apiUpdateCamera, deleteCamera as apiDeleteCamera } from '@/services/camera';
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { Camera, CameraListResponse } from '@/types/api';
+import { Camera, CameraListResponse, CameraStatusItem, CameraStatusQuery, CameraStatusResponse } from '@/types/api';
 
 export const useCamera = () => {
   const queryClient = useQueryClient();
@@ -11,6 +11,8 @@ export const useCamera = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [cameraStatusItems, setCameraStatusItems] = useState<CameraStatusItem[]>([]);
+  const [cameraStatusTotal, setCameraStatusTotal] = useState(0);
 
   const getCameras = useCallback(async (search?: string, page = 1, pageSize = 10, append = false) => {
     try {
@@ -31,6 +33,39 @@ export const useCamera = () => {
       return { ...data, totalPages: computedTotalPages };
     } catch (err: any) {
       const message = err.response?.data?.message || 'Không thể tải danh sách camera';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [queryClient]);
+
+  const getCameraStatus = useCallback(async (query: CameraStatusQuery = {}, append = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const normalizedQuery = {
+        page: query.page ?? 1,
+        pageSize: query.pageSize ?? 50,
+        wardId: query.wardId ?? '',
+        districtName: query.districtName ?? '',
+        rain: query.rain ?? 'all',
+        traffic: query.traffic ?? 'all',
+        favoriteOnly: query.favoriteOnly ?? false,
+      };
+      const data = await queryClient.fetchQuery({
+        queryKey: ['camera-status', normalizedQuery],
+        staleTime: 0,
+        queryFn: async () => {
+          const response = await apiGetCameraStatus(normalizedQuery);
+          return response.data as CameraStatusResponse;
+        },
+      });
+      setCameraStatusItems(append ? (prev) => [...prev, ...data.data] : data.data);
+      setCameraStatusTotal(data.total);
+      return data;
+    } catch (err: any) {
+      const message = err.response?.data?.message || 'Không thể tải trạng thái camera';
       setError(message);
       throw err;
     } finally {
@@ -80,6 +115,19 @@ export const useCamera = () => {
     }
   };
 
-  return { cameras, loading, error, totalPages, total, getCameras, createCamera, updateCamera, deleteCamera };
+  return {
+    cameras,
+    cameraStatusItems,
+    cameraStatusTotal,
+    loading,
+    error,
+    totalPages,
+    total,
+    getCameras,
+    getCameraStatus,
+    createCamera,
+    updateCamera,
+    deleteCamera,
+  };
 };
 
