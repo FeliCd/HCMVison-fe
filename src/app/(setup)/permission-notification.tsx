@@ -115,6 +115,10 @@ function PermissionNotificationContent() {
     [selectedWardId, wards]
   );
 
+  const finishSetup = () => {
+    router.replace('/(tabs)/explore');
+  };
+
   const handleSyncPushToken = async () => {
     setIsSyncingPush(true);
     setError(null);
@@ -157,6 +161,7 @@ function PermissionNotificationContent() {
       setSelectedWardId(null);
       setSearchText('');
       await loadNotificationSettings();
+      finishSetup();
     } catch (createError) {
       setError(getErrorMessage(createError, 'Không đăng ký được khu vực nhận cảnh báo.'));
     } finally {
@@ -197,7 +202,7 @@ function PermissionNotificationContent() {
       ]}
     >
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable style={styles.backButton} onPress={finishSetup}>
           <Icon name="arrow_back" color="#d4e4fa" size={22} />
         </Pressable>
         <View style={styles.headerTextWrap}>
@@ -334,6 +339,12 @@ function PermissionNotificationContent() {
         {message ? <Text style={styles.successText}>{message}</Text> : null}
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
+
+      <View style={styles.footer}>
+        <Pressable style={styles.finishButton} onPress={finishSetup}>
+          <Text style={styles.finishButtonText}>Vào ứng dụng</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -383,7 +394,7 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: 16,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
   section: {
     backgroundColor: 'rgba(25, 30, 40, 0.75)',
@@ -515,5 +526,24 @@ const styles = StyleSheet.create({
     color: '#ffb4ab',
     fontSize: 13,
     fontWeight: '700',
+  },
+  footer: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  finishButton: {
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 242, 234, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 234, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  finishButtonText: {
+    color: '#d4e4fa',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });

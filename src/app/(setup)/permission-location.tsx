@@ -22,6 +22,10 @@ export default function PermissionLocationScreen() {
     transform: [{ scale: btnScale.value }],
   }));
 
+  const finishLocationSetup = () => {
+    router.replace('/(tabs)/explore');
+  };
+
   const handleAllowLocation = async () => {
     setIsSyncingLocation(true);
     try {
@@ -30,7 +34,7 @@ export default function PermissionLocationScreen() {
       console.warn('Failed to sync current location during setup', error);
     } finally {
       setIsSyncingLocation(false);
-      router.push('/permission-notification');
+      finishLocationSetup();
     }
   };
 
@@ -59,7 +63,7 @@ export default function PermissionLocationScreen() {
       </View>
 
       <Animated.View entering={FadeInUp.duration(400).delay(600)} style={styles.footer}>
-        <Pressable style={styles.denyButton} onPress={() => router.replace('/permission-notification')}>
+        <Pressable style={styles.denyButton} onPress={finishLocationSetup}>
           <Text style={styles.denyButtonText}>Lúc khác</Text>
         </Pressable>
         <AnimatedPressable

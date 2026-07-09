@@ -22,6 +22,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
@@ -41,9 +42,18 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setLocalError('');
     clearError();
+    const normalizedEmail = email.trim().toLowerCase();
 
     if (!username.trim()) {
       setLocalError('Vui lòng nhập tên đăng nhập');
+      return;
+    }
+    if (!normalizedEmail) {
+      setLocalError('Vui lòng nhập email');
+      return;
+    }
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setLocalError('Email không hợp lệ');
       return;
     }
     if (!password.trim()) {
@@ -56,7 +66,7 @@ export default function RegisterScreen() {
     }
 
     try {
-      await register(username.trim(), email.trim(), password);
+      await register(username.trim(), normalizedEmail, password);
       // useAuth.register() tự auto-login và redirect sang /(tabs)/explore
     } catch {
       // error đã được set trong useAuth
@@ -111,14 +121,14 @@ export default function RegisterScreen() {
 
             {/* Email Field */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email (Tùy chọn)</Text>
+              <Text style={styles.label}>Email</Text>
               <View style={styles.inputWrapper}>
                 <View style={styles.inputIcon}>
                   <Icon name="mail" color="#849492" size={20} />
                 </View>
                 <TextInput
                   style={styles.input}
-                  placeholder="Nhập email để nhận cảnh báo"
+                  placeholder="Nhập email"
                   placeholderTextColor="#b9cac8"
                   value={email}
                   onChangeText={setEmail}
