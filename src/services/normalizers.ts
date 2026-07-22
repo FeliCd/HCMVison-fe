@@ -1,3 +1,16 @@
+/**
+ * normalizers.ts — Bộ công cụ chuẩn hoá dữ liệu từ API.
+ *
+ * TẠI SAO CẦN NORMALIZE?
+ * Backend có thể trả về dữ liệu với:
+ *  - Tên field không nhất quán (cameraId / camera_id / CameraId)
+ *  - Thiếu field (undefined thay vì giá trị mặc định)
+ *  - Kiểu dữ liệu sai (số dưới dạng string)
+ *  - URL ảnh dạng relative hoặc http thay vì https
+ *
+ * Mọi service function đều normalize kết quả trước khi trả về,
+ * đảm bảo component nhận được data đúng type và luôn có giá trị hợp lệ.
+ */
 import {
   AdminAccountAuditLog,
   AdminAuditLogResponse,
@@ -26,6 +39,13 @@ import {
 } from '@/types/api';
 import { API_ORIGIN } from './core';
 
+// ─── PRIMITIVE HELPERS ────────────────────────────────────────────────────────
+
+/**
+ * Tìm giá trị của một field trong object, thử cả camelCase và PascalCase.
+ * Ví dụ: field(obj, 'cameraId') sẽ tìm 'cameraId', 'CameraId' và ngược lại.
+ * Hỗ trợ truyền nhiều key để thử lần lượt (fallback chain).
+ */
 export function field<T = unknown>(value: unknown, ...keys: string[]): T | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const record = value as Record<string, unknown>;
@@ -39,6 +59,12 @@ export function field<T = unknown>(value: unknown, ...keys: string[]): T | undef
   return undefined;
 }
 
+/**
+ * Trích xuất mảng từ payload với fallback linh hoạt:
+ *  - Nếu value đã là array → trả về luôn
+ *  - Nếu không → thử tìm array lồng theo từng key được cung cấp
+ *  - Không tìm được → trả về []
+ */
 export function asArray<T = unknown>(value: unknown, ...keys: string[]): T[] {
   if (Array.isArray(value)) return value as T[];
   for (const key of keys) {
@@ -48,6 +74,11 @@ export function asArray<T = unknown>(value: unknown, ...keys: string[]): T[] {
   return [];
 }
 
+/**
+ * Chuyển đổi giá trị sang number an toàn.
+ * Hỗ trợ: số hợp lệ, string số ('42', '3.14').
+ * Trả về fallback (mặc định 0) với: null, undefined, NaN, Infinity, string không phải số.
+ */
 export function asNumber(value: unknown, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
@@ -57,23 +88,40 @@ export function asNumber(value: unknown, fallback = 0): number {
   return fallback;
 }
 
+/**
+ * Chuyển đổi giá trị sang boolean an toàn.
+ * Hỗ trợ: boolean thực, string 'true'/'false' (không phân biệt hoa thường).
+ * Trả về fallback (mặc định false) với null/undefined.
+ */
 export function asBool(value: unknown, fallback = false): boolean {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') return value.toLowerCase() === 'true';
   return fallback;
 }
 
+/**
+ * Chuyển đổi giá trị sang string an toàn.
+ * null/undefined trả về fallback (mặc định ''), mọi giá trị khác được String() coerce.
+ */
 export function asString(value: unknown, fallback = ''): string {
   if (value === undefined || value === null) return fallback;
   return String(value);
 }
 
+/**
+ * Chuyển đổi URL ảnh về dạng absolute https.
+ * Xử lý 3 trường hợp:
+ *  1. Đã là absolute URL → giữ nguyên, chỉ upgrade http→https với onrender.com
+ *  2. Relative path bắt đầu bằng '/' → thêm API_ORIGIN vào trước
+ *  3. Relative path không có '/' → thêm API_ORIGIN/ vào trước
+ */
 export function toAbsoluteImageUrl(url?: string | null): string | undefined {
   if (!url) return undefined;
   const trimmed = url.trim();
   if (!trimmed) return undefined;
 
   if (/^https?:\/\//i.test(trimmed)) {
+    // Upgrade http → https cho domain của server production
     return trimmed.replace(/^http:\/\/hcmvision-api\.onrender\.com/i, 'https://hcmvision-api.onrender.com');
   }
 

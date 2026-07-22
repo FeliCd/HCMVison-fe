@@ -1,53 +1,49 @@
+/**
+ * Màn hình thêm khu vực theo dõi cảnh báo mưa.
+ *
+ * Luồng:
+ *  1. Load danh sách quận từ API khi mount
+ *  2. Khi user chọn quận → load danh sách phường của quận đó
+ *  3. User chọn phường → nhấn "Lưu đăng ký" → tạo subscription
+ *  4. Sau khi lưu thành công → quay lại màn hình trước
+ */
 import { createSubscription } from '@/services/misc';
+import { getDistricts, getWardsByDistrict } from '@/services/location';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { apiClient } from '@/services/api';
 import { District, Ward } from '@/types/api';
 import { Icon } from '@/components/icons';
 import { RequireAuth } from '@/components/route-guards';
 
-function toArray<T>(payload: unknown): T[] {
-  if (Array.isArray(payload)) {
-    return payload as T[];
-  }
-
-  const value = payload as any;
-  if (Array.isArray(value?.data)) {
-    return value.data as T[];
-  }
-
-  if (Array.isArray(value?.items)) {
-    return value.items as T[];
-  }
-
-  if (Array.isArray(value?.data?.items)) {
-    return value.data.items as T[];
-  }
-
-  return [];
-}
-
-
+// ─── Nội dung chính của màn hình (được bọc bởi RequireAuth bên dưới) ─────────
 function AddSubscriptionContent() {
   const insets = useSafeAreaInsets();
+
+  // Danh sách quận và phường
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
+
+  // Quận / phường đang được chọn
   const [selectedDist, setSelectedDist] = useState<string | null>(null);
   const [selectedWard, setSelectedWard] = useState<string | null>(null);
+
+  // Trạng thái loading: dùng chung cho cả tải quận và tải phường
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Tải danh sách quận ngay khi màn hình mount
   useEffect(() => {
     fetchDistricts();
   }, []);
 
+  // Gọi API lấy danh sách quận, lọc bỏ các quận không có tên
   const fetchDistricts = async () => {
     try {
-      const response = await apiClient.getDistricts();
+      const response = await getDistricts();
       setDistricts(
-        toArray<District>(response.data).filter(
+        response.data.filter(
           (district) => typeof district.name === 'string' && district.name.trim().length > 0
         )
       );
@@ -58,15 +54,18 @@ function AddSubscriptionContent() {
     }
   };
 
+  // Khi user chọn một quận:
+  //  - Reset phường đang chọn
+  //  - Gọi API lấy danh sách phường theo tên quận
   const selectDistrict = async (id: string, name: string) => {
     setSelectedDist(id);
     setSelectedWard(null);
     setWards([]);
     setLoading(true);
     try {
-      const response = await apiClient.getWardsByDistrict(name);
+      const response = await getWardsByDistrict(name);
       setWards(
-        toArray<Ward>(response.data).filter(
+        response.data.filter(
           (ward) =>
             typeof ward.id === 'string' &&
             ward.id.trim().length > 0 &&
@@ -81,6 +80,7 @@ function AddSubscriptionContent() {
     }
   };
 
+  // Lưu đăng ký theo dõi khu vực đã chọn
   const handleSave = async () => {
     if (!selectedWard) return;
     setSubmitting(true);
@@ -97,6 +97,7 @@ function AddSubscriptionContent() {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Icon name="close" color="#d4e4fa" size={24} />
@@ -106,6 +107,7 @@ function AddSubscriptionContent() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Bước 1: Chọn quận */}
         <Text style={styles.label}>1. Chọn cụm / khu vực</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
           {districts.map(d => {
@@ -123,6 +125,7 @@ function AddSubscriptionContent() {
           })}
         </ScrollView>
 
+        {/* Bước 2: Chọn phường */}
         <Text style={[styles.label, { marginTop: 24 }]}>2. Chọn Phường / Xã</Text>
         {loading && selectedDist ? (
           <ActivityIndicator size="small" color="#00f2ea" style={{ marginTop: 12, alignSelf: 'flex-start' }} />
@@ -148,6 +151,7 @@ function AddSubscriptionContent() {
 
       </ScrollView>
 
+      {/* Footer: nút lưu */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <Pressable
           style={[styles.saveBtn, (!selectedWard || submitting) && styles.saveBtnDisabled]}
@@ -161,6 +165,7 @@ function AddSubscriptionContent() {
   );
 }
 
+// Bọc bởi RequireAuth: nếu chưa đăng nhập sẽ tự redirect về /login
 export default function AddSubscriptionScreen() {
   return (
     <RequireAuth>

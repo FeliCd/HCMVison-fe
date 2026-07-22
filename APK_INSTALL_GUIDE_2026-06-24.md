@@ -33,7 +33,7 @@ Neu may da cai ban cu va bao loi chu ky hoac khong cai de len duoc, hay go cai d
 
 ## Cach dung nhanh khi demo
 
-1. Mo app, khong can dang nhap de xem `Ban do`, `Tinh trang`, `Canh bao`, `Chi tiet camera` va `Tro ly AI`.
+1. Mo app, khong can dang nhap de xem `Ban do`, `Camera`, `Canh bao`, `Chi tiet camera` va `Tro ly AI`.
 2. Khi app hoi quyen vi tri, cho phep neu muon dung ban do/tuyen duong sat thuc te hon.
 3. Nut dang ky nhan canh bao moi yeu cau dang nhap.
 4. Dang nhap user de quan ly dang ky canh bao.

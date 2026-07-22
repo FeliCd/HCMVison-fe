@@ -1,3 +1,17 @@
+/**
+ * useTheme.tsx — Context quản lý theme (sáng/tối/theo hệ thống).
+ *
+ * Hệ thống theme 3 chế độ:
+ *  - 'light'  : Bắt buộc giao diện sáng
+ *  - 'dark'   : Bắt buộc giao diện tối
+ *  - 'system' : Tự động theo cài đặt của thiết bị (mặc định)
+ *
+ * Lưu trữ tùy chọn vào AsyncStorage ('app_theme') để giữ nguyên sau khi restart app.
+ *
+ * Cung cấp:
+ *  - ThemeProvider : Bao bọc app, quản lý state theme
+ *  - useTheme()    : Hook trả về { theme, isDark, colors, setTheme }
+ */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme as useDeviceColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -63,7 +77,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [theme, setThemeState] = useState<ThemeType>('system');
 
   useEffect(() => {
-    // Load theme from storage
+    // Đọc theme đã lưu từ lần trước khi app khởi động
     const loadTheme = async () => {
       try {
         const storedTheme = await AsyncStorage.getItem('app_theme');
@@ -77,6 +91,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadTheme();
   }, []);
 
+  /** Thay đổi theme và lưu vào AsyncStorage để giữ sau restart */
   const setTheme = async (newTheme: ThemeType) => {
     setThemeState(newTheme);
     try {
@@ -86,6 +101,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Nếu chế độ 'system', đọc dark/light từ thiết bị; ngược lại dùng lựa chọn của user
   const isDark = theme === 'system' ? deviceColorScheme === 'dark' : theme === 'dark';
   const colors = isDark ? darkTheme : lightTheme;
 
@@ -96,6 +112,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
+/** Hook truy cập ThemeContext — phải dùng bên trong <ThemeProvider> */
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {

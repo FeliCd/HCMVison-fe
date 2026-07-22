@@ -1,3 +1,17 @@
+/**
+ * _layout.tsx — Root layout của toàn bộ app.
+ *
+ * Cây Provider (từ ngoài vào trong):
+ *  ThemeProvider        → quản lý theme sáng/tối
+ *    AppQueryProvider   → TanStack Query client (cache API calls)
+ *      AuthProvider     → trạng thái auth user
+ *        NotificationLifecycle → đăng ký event notification
+ *          Stack        → navigation stack chính
+ *
+ * NotificationLifecycle:
+ *  Mount: đăng ký listener cho tap notification và push token refresh
+ *  Unmount: hủy đăng ký (cleanup tự động)
+ */
 import { DarkTheme, DefaultTheme, ThemeProvider as ExpoThemeProvider, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -17,6 +31,12 @@ LogBox.ignoreLogs([
   '[Reanimated] Property "opacity" of AnimatedComponent(View) may be overwritten by a layout animation.',
 ]);
 
+/**
+ * Component rừng — chỉ chạy side effect và cleanup, không render UI.
+ * - addNotificationTapListener      : xử lý khi user tap vào thông báo push
+ * - addPushTokenRefreshListener     : lắng nghe FCM token mới và sync lên server
+ * - addAuthenticatedAppStateSyncListener : sync khi app foreground (gửi lại GPS, token)
+ */
 function NotificationLifecycle() {
   useEffect(() => {
     const tapSubscription = addNotificationTapListener();
